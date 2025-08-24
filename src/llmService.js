@@ -1,10 +1,10 @@
-// [MODIFIED] Deepbricks LLM处理服务（旧版文件保持兼容接口）
+// [MODIFIED] ModelScope LLM处理服务（旧版文件保持兼容接口）
 
-// Deepbricks API配置
+// ModelScope API配置
 const MODELSCOPE_CONFIG = {
-  baseURL: 'https://api.deepbricks.ai/v1/',
-  model: 'GPT-4.1-mini',
-  apiKey: 'sk-lNVAREVHjj386FDCd9McOL7k66DZCUkTp6IbV0u9970qqdlg'
+  baseURL: 'https://api-inference.modelscope.cn/v1/',
+  model: 'deepseek-ai/DeepSeek-V3',
+  apiKey: 'ms-61ecf06f-49de-409b-b685-00a383961042'
 }
 
 // 调用魔搭API的通用函数

@@ -87,6 +87,12 @@ function App() {
     cancelFollowUpNegotiation,
     sendFollowUpNegotiationRequest,
     rejectFollowUp,
+    // 智能追问反馈相关
+    acceptIntelligentFollowUp,
+    negotiateIntelligentFollowUp,
+    cancelIntelligentFollowUpNegotiation,
+    sendIntelligentFollowUpNegotiationRequest,
+    rejectIntelligentFollowUp,
     // 原有方法
     sendProblemMessage,
     sendSolutionMessage,
@@ -352,6 +358,12 @@ function App() {
                   onCancelFollowUpNegotiation={cancelFollowUpNegotiation}
                   onSendFollowUpNegotiationRequest={sendFollowUpNegotiationRequest}
                   onRejectFollowUp={rejectFollowUp}
+                  // 新增：智能追问反馈相关props
+                  onAcceptIntelligentFollowUp={acceptIntelligentFollowUp}
+                  onNegotiateIntelligentFollowUp={negotiateIntelligentFollowUp}
+                  onCancelIntelligentFollowUpNegotiation={cancelIntelligentFollowUpNegotiation}
+                  onSendIntelligentFollowUpNegotiationRequest={sendIntelligentFollowUpNegotiationRequest}
+                  onRejectIntelligentFollowUp={rejectIntelligentFollowUp}
                 />
               </div>
             </AnimatedTransition>

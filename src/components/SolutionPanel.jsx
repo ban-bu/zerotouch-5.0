@@ -31,7 +31,13 @@ const SolutionPanel = ({
   onRejectFollowUp,
   onNegotiateFollowUp,
   onCancelFollowUpNegotiation,
-  onSendFollowUpNegotiationRequest
+  onSendFollowUpNegotiationRequest,
+  // 新增：智能追问反馈相关props
+  onAcceptIntelligentFollowUp,
+  onRejectIntelligentFollowUp,
+  onNegotiateIntelligentFollowUp,
+  onCancelIntelligentFollowUpNegotiation,
+  onSendIntelligentFollowUpNegotiationRequest
 }) => {
   const [input, setInput] = useState('')
 
@@ -96,16 +102,26 @@ const SolutionPanel = ({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
+  // 智能滚动：只在用户接近底部时才自动滚动
   useEffect(() => {
-    scrollToBottom()
+    const container = messagesEndRef.current?.parentElement
+    if (!container) return
+
+    // 检查用户是否接近底部（距离底部小于100px）
+    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100
+    
+    // 只有在用户接近底部时才自动滚动
+    if (isNearBottom) {
+      setTimeout(() => scrollToBottom(), 100) // 短暂延迟确保内容已渲染
+    }
   }, [messages])
 
-  // 当进入迭代模式时，将待发送的响应填入输入框
-  useEffect(() => {
-    if (iterationMode && pendingResponse) {
-      setFinalResponse(pendingResponse)
-    }
-  }, [iterationMode, pendingResponse])
+  // [REMOVED] 不再自动填入建议到最终回复输入框
+  // useEffect(() => {
+  //   if (iterationMode && pendingResponse) {
+  //     setFinalResponse(pendingResponse)
+  //   }
+  // }, [iterationMode, pendingResponse])
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -310,11 +326,9 @@ const SolutionPanel = ({
                       <div className="text-xs font-semibold text-white mb-1" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                         AI生成的建议
                       </div>
-                      {/* [MODIFIED] 单条消息滚动容器 - 添加点击事件 */}
+                      {/* [MODIFIED] 建议内容显示容器 - 移除点击填入功能 */}
                       <div 
-                        className="cursor-pointer rounded p-2 transition-colors"
-                        onClick={() => setInput(message.text)}
-                        title="点击填入输入框"
+                        className="rounded p-2"
                         style={{
                           background: 'linear-gradient(135deg, rgba(168,85,247,0.06) 0%, rgba(221,214,254,0.05) 100%)',
                           border: '1px solid rgba(168,85,247,0.2)',
@@ -352,16 +366,68 @@ const SolutionPanel = ({
                      onCancel={onCancelNegotiation}
                    />
                  ) : message.negotiated ? (
-                   <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-2">
-                     <div className="text-sm text-blue-800 dark:text-blue-200">
-                       ✓ 已协商修改
-                       <details className="mt-1">
-                         <summary className="cursor-pointer text-xs text-blue-600 hover:text-blue-800">查看协商详情</summary>
-                         <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
-                           <div><strong>原始建议:</strong> {message.originalText}</div>
-                           <div className="mt-1"><strong>协商要求:</strong> {message.negotiationRequest}</div>
-                         </div>
-                       </details>
+                   <div className="space-y-2">
+                     <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-2">
+                       <div className="text-sm text-blue-800 dark:text-blue-200">
+                         ✓ 已协商修改 ({message.negotiationHistory?.length || 1} 次)
+                         <details className="mt-1">
+                           <summary className="cursor-pointer text-xs text-blue-600 hover:text-blue-800">查看协商历史</summary>
+                           <div className="mt-2 text-xs text-gray-600 dark:text-gray-400 space-y-2">
+                             <div><strong>最初建议:</strong> {message.originalText}</div>
+                             {message.negotiationHistory?.map((nego, index) => (
+                               <div key={index} className="border-l-2 border-blue-200 pl-2">
+                                 <div><strong>第{index + 1}次协商要求:</strong> {nego.negotiationRequest}</div>
+                                 <div className="text-xs text-gray-500">{new Date(nego.timestamp).toLocaleString()}</div>
+                               </div>
+                             ))}
+                           </div>
+                         </details>
+                       </div>
+                     </div>
+                     {/* 继续提供协商选项 */}
+                     <div className="flex space-x-2">
+                       <button
+                         onClick={() => onAcceptSuggestion && onAcceptSuggestion(message.id)}
+                         className="flex-1 px-3 py-2 text-white rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm"
+                         style={{
+                           background: 'rgba(255, 255, 255, 0.15)',
+                           backdropFilter: 'blur(8px) saturate(1.2)',
+                           WebkitBackdropFilter: 'blur(8px) saturate(1.2)',
+                           border: '1px solid rgba(255, 255, 255, 0.25)'
+                         }}
+                         title="接受当前版本"
+                       >
+                         <Check className="w-4 h-4" />
+                         <span>接受建议</span>
+                       </button>
+                       <button
+                         onClick={() => onNegotiateSuggestion && onNegotiateSuggestion(message.id)}
+                         className="flex-1 px-3 py-2 text-white rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm"
+                         style={{
+                           background: 'rgba(255, 255, 255, 0.15)',
+                           backdropFilter: 'blur(8px) saturate(1.2)',
+                           WebkitBackdropFilter: 'blur(8px) saturate(1.2)',
+                           border: '1px solid rgba(255, 255, 255, 0.25)'
+                         }}
+                         title="继续协商修改"
+                       >
+                         <MessageCircle className="w-4 h-4" />
+                         <span>继续协商</span>
+                       </button>
+                       <button
+                         onClick={() => onRejectSuggestion && onRejectSuggestion(message.id)}
+                         className="flex-1 px-3 py-2 text-white rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm"
+                         style={{
+                           background: 'rgba(255, 255, 255, 0.15)',
+                           backdropFilter: 'blur(8px) saturate(1.2)',
+                           WebkitBackdropFilter: 'blur(8px) saturate(1.2)',
+                           border: '1px solid rgba(255, 255, 255, 0.25)'
+                         }}
+                         title="重新生成"
+                       >
+                         <XCircle className="w-4 h-4" />
+                         <span>重新生成</span>
+                       </button>
                      </div>
                    </div>
                 ) : (
@@ -435,11 +501,9 @@ const SolutionPanel = ({
                       <div className="text-xs font-semibold text-white mb-1" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                         AI生成的追问
                       </div>
-                      {/* [MODIFIED] 单条消息滚动容器 - 添加点击事件 */}
+                      {/* [MODIFIED] 单条消息滚动容器 - 移除点击事件 */}
                       <div 
-                        className="cursor-pointer rounded p-2 transition-colors"
-                        onClick={() => setInput(message.text)}
-                        title="点击填入输入框"
+                        className="rounded p-2"
                         style={{
                           background: 'linear-gradient(135deg, rgba(251, 146, 60, 0.06) 0%, rgba(254, 215, 170, 0.05) 100%)',
                           border: '1px solid rgba(251, 146, 60, 0.2)',
@@ -473,26 +537,78 @@ const SolutionPanel = ({
                 ) : message.negotiating ? (
                    <NegotiationPanel 
                      messageId={message.id}
-                     onSendNegotiation={onSendFollowUpNegotiationRequest}
+                     onSendNegotiation={(id, text) => onSendFollowUpNegotiationRequest(id, text, setInput)}
                      onCancel={onCancelFollowUpNegotiation}
                    />
                  ) : message.negotiated ? (
-                   <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-2">
-                     <div className="text-sm text-blue-800 dark:text-blue-200">
-                       ✓ 已协商修改
-                       <details className="mt-1">
-                         <summary className="cursor-pointer text-xs text-blue-600 hover:text-blue-800">查看协商详情</summary>
-                         <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
-                           <div><strong>原始追问:</strong> {message.originalText}</div>
-                           <div className="mt-1"><strong>协商要求:</strong> {message.negotiationRequest}</div>
-                         </div>
-                       </details>
+                   <div className="space-y-2">
+                     <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-2">
+                       <div className="text-sm text-blue-800 dark:text-blue-200">
+                         ✓ 已协商修改 ({message.negotiationHistory?.length || 1} 次)
+                         <details className="mt-1">
+                           <summary className="cursor-pointer text-xs text-blue-600 hover:text-blue-800">查看协商历史</summary>
+                           <div className="mt-2 text-xs text-gray-600 dark:text-gray-400 space-y-2">
+                             <div><strong>最初追问:</strong> {message.originalText}</div>
+                             {message.negotiationHistory?.map((nego, index) => (
+                               <div key={index} className="border-l-2 border-blue-200 pl-2">
+                                 <div><strong>第{index + 1}次协商要求:</strong> {nego.negotiationRequest}</div>
+                                 <div className="text-xs text-gray-500">{new Date(nego.timestamp).toLocaleString()}</div>
+                               </div>
+                             ))}
+                           </div>
+                         </details>
+                       </div>
+                     </div>
+                     {/* 继续提供协商选项 */}
+                     <div className="flex space-x-2">
+                       <button
+                         onClick={() => onAcceptFollowUp && onAcceptFollowUp(message.id, setInput)}
+                         className="flex-1 px-3 py-2 text-green-700 rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm"
+                         style={{
+                           background: 'linear-gradient(135deg, rgba(16,185,129,0.12) 0%, rgba(52,211,153,0.1) 100%)',
+                           backdropFilter: 'blur(8px) saturate(1.2)',
+                           WebkitBackdropFilter: 'blur(8px) saturate(1.2)',
+                           border: '1px solid rgba(16,185,129,0.25)'
+                         }}
+                         title="接受当前追问"
+                       >
+                         <Check className="w-4 h-4" />
+                         <span>接受追问</span>
+                       </button>
+                       <button
+                         onClick={() => onNegotiateFollowUp && onNegotiateFollowUp(message.id)}
+                         className="flex-1 px-3 py-2 text-blue-700 rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm"
+                         style={{
+                           background: 'linear-gradient(135deg, rgba(59,130,246,0.12) 0%, rgba(147,197,253,0.1) 100%)',
+                           backdropFilter: 'blur(8px) saturate(1.2)',
+                           WebkitBackdropFilter: 'blur(8px) saturate(1.2)',
+                           border: '1px solid rgba(59,130,246,0.25)'
+                         }}
+                         title="继续协商修改追问"
+                       >
+                         <MessageCircle className="w-4 h-4" />
+                         <span>继续协商</span>
+                       </button>
+                       <button
+                         onClick={() => onRejectFollowUp && onRejectFollowUp(message.id)}
+                         className="flex-1 px-3 py-2 text-red-700 rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm"
+                         style={{
+                           background: 'linear-gradient(135deg, rgba(248,113,113,0.12) 0%, rgba(252,165,165,0.1) 100%)',
+                           backdropFilter: 'blur(8px) saturate(1.2)',
+                           WebkitBackdropFilter: 'blur(8px) saturate(1.2)',
+                           border: '1px solid rgba(248,113,113,0.25)'
+                         }}
+                         title="重新生成"
+                       >
+                         <XCircle className="w-4 h-4" />
+                         <span>重新生成</span>
+                       </button>
                      </div>
                    </div>
                 ) : (
                    <div className="flex space-x-2">
                      <button
-                       onClick={() => onAcceptFollowUp && onAcceptFollowUp(message.id)}
+                       onClick={() => onAcceptFollowUp && onAcceptFollowUp(message.id, setInput)}
                        className="flex-1 px-3 py-2 text-green-700 rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm"
                        style={{
                          background: 'linear-gradient(135deg, rgba(16,185,129,0.12) 0%, rgba(52,211,153,0.1) 100%)',
@@ -532,6 +648,194 @@ const SolutionPanel = ({
                      >
                        <XCircle className="w-4 h-4" />
                        <span>重新生成</span>
+                     </button>
+                   </div>
+                 )}
+              </div>
+                      
+                      <div className="text-xs text-gray-300 mt-1 opacity-90" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
+                        {new Date(message.timestamp).toLocaleTimeString()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 新增：智能追问消息 */}
+              {message.type === 'intelligent_followup' && (
+                <div className="message-bubble text-indigo-900 shadow-sm hover:shadow-md transition-all duration-200" style={{
+                  background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(165, 180, 252, 0.06) 100%)',
+                  backdropFilter: 'blur(14px) saturate(1.2)',
+                  WebkitBackdropFilter: 'blur(14px) saturate(1.2)',
+                  border: '1px solid rgba(99, 102, 241, 0.25)',
+                  borderRadius: '12px'
+                }}>
+                  <div className="flex items-start space-x-2">
+                    <MessageSquare className="w-4 h-4 text-indigo-600 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <div className="text-xs font-semibold text-white mb-1" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
+                        智能分析生成的追问
+                      </div>
+                      {/* 显示选中的信息点 */}
+                      {message.selectedInfo && message.selectedInfo.length > 0 && (
+                        <div className="mb-2 p-2 rounded text-xs" style={{
+                          background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(165, 180, 252, 0.08) 100%)',
+                          backdropFilter: 'blur(10px) saturate(1.2)',
+                          WebkitBackdropFilter: 'blur(10px) saturate(1.2)',
+                          border: '1px solid rgba(165, 180, 252, 0.25)',
+                          borderRadius: '8px'
+                        }}>
+                          <strong>基于信息点：</strong>
+                          {message.selectedInfo.map(info => info.name).join('、')}
+                        </div>
+                      )}
+                      {/* 智能追问内容显示容器 */}
+                      <div 
+                        className="rounded p-2"
+                        style={{
+                          background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.06) 0%, rgba(165, 180, 252, 0.05) 100%)',
+                          border: '1px solid rgba(99, 102, 241, 0.2)',
+                          maxHeight: 'none',
+                          overflowY: 'visible',
+                          width: '100%',
+                          wordWrap: 'break-word',
+                          whiteSpace: 'pre-wrap'
+                        }}
+                      >
+                        <p className="whitespace-pre-wrap text-gray-800 dark:text-gray-200 select-text" style={{
+                          margin: 0,
+                          padding: 0,
+                          lineHeight: '1.5',
+                          wordBreak: 'break-word',
+                          overflowWrap: 'break-word',
+                          maxWidth: '100%'
+                        }}>{message.text}</p>
+                      </div>
+                      
+                      {/* 智能追问反馈按钮 */}
+              <div className="mt-3">
+                {message.feedbackGiven ? (
+                  <div className={`text-sm px-3 py-1 rounded ${
+                    message.accepted 
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
+                      : 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
+                  }`}>
+                    {message.accepted ? '✓ 已接受智能追问' : '↻ 已拒绝，回到信息选择...'}
+                  </div>
+                ) : message.negotiating ? (
+                   <NegotiationPanel 
+                     messageId={message.id}
+                     onSendNegotiation={(id, text) => onSendIntelligentFollowUpNegotiationRequest(id, text, setInput)}
+                     onCancel={onCancelIntelligentFollowUpNegotiation}
+                   />
+                 ) : message.negotiated ? (
+                   <div className="space-y-2">
+                     <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-2">
+                       <div className="text-sm text-blue-800 dark:text-blue-200">
+                         ✓ 已协商修改 ({message.negotiationHistory?.length || 1} 次)
+                         <details className="mt-1">
+                           <summary className="cursor-pointer text-xs text-blue-600 hover:text-blue-800">查看协商历史</summary>
+                           <div className="mt-2 text-xs text-gray-600 dark:text-gray-400 space-y-2">
+                             <div><strong>最初智能追问:</strong> {message.originalText}</div>
+                             {message.negotiationHistory?.map((nego, index) => (
+                               <div key={index} className="border-l-2 border-blue-200 pl-2">
+                                 <div><strong>第{index + 1}次协商要求:</strong> {nego.negotiationRequest}</div>
+                                 <div className="text-xs text-gray-500">{new Date(nego.timestamp).toLocaleString()}</div>
+                               </div>
+                             ))}
+                           </div>
+                         </details>
+                       </div>
+                     </div>
+                     {/* 继续提供协商选项 */}
+                     <div className="flex space-x-2">
+                       <button
+                         onClick={() => onAcceptIntelligentFollowUp && onAcceptIntelligentFollowUp(message.id, setInput)}
+                         className="flex-1 px-3 py-2 text-green-700 rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm"
+                         style={{
+                           background: 'linear-gradient(135deg, rgba(16,185,129,0.12) 0%, rgba(52,211,153,0.1) 100%)',
+                           backdropFilter: 'blur(8px) saturate(1.2)',
+                           WebkitBackdropFilter: 'blur(8px) saturate(1.2)',
+                           border: '1px solid rgba(16,185,129,0.25)'
+                         }}
+                         title="接受当前智能追问"
+                       >
+                         <Check className="w-4 h-4" />
+                         <span>接受追问</span>
+                       </button>
+                       <button
+                         onClick={() => onNegotiateIntelligentFollowUp && onNegotiateIntelligentFollowUp(message.id)}
+                         className="flex-1 px-3 py-2 text-blue-700 rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm"
+                         style={{
+                           background: 'linear-gradient(135deg, rgba(59,130,246,0.12) 0%, rgba(147,197,253,0.1) 100%)',
+                           backdropFilter: 'blur(8px) saturate(1.2)',
+                           WebkitBackdropFilter: 'blur(8px) saturate(1.2)',
+                           border: '1px solid rgba(59,130,246,0.25)'
+                         }}
+                         title="继续协商修改智能追问"
+                       >
+                         <MessageCircle className="w-4 h-4" />
+                         <span>继续协商</span>
+                       </button>
+                       <button
+                         onClick={() => onRejectIntelligentFollowUp && onRejectIntelligentFollowUp(message.id)}
+                         className="flex-1 px-3 py-2 text-red-700 rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm"
+                         style={{
+                           background: 'linear-gradient(135deg, rgba(248,113,113,0.12) 0%, rgba(252,165,165,0.1) 100%)',
+                           backdropFilter: 'blur(8px) saturate(1.2)',
+                           WebkitBackdropFilter: 'blur(8px) saturate(1.2)',
+                           border: '1px solid rgba(248,113,113,0.25)'
+                         }}
+                         title="拒绝并重新选择信息"
+                       >
+                         <XCircle className="w-4 h-4" />
+                         <span>重新选择</span>
+                       </button>
+                     </div>
+                   </div>
+                ) : (
+                   <div className="flex space-x-2">
+                     <button
+                       onClick={() => onAcceptIntelligentFollowUp && onAcceptIntelligentFollowUp(message.id, setInput)}
+                       className="flex-1 px-3 py-2 text-green-700 rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm"
+                       style={{
+                         background: 'linear-gradient(135deg, rgba(16,185,129,0.12) 0%, rgba(52,211,153,0.1) 100%)',
+                         backdropFilter: 'blur(8px) saturate(1.2)',
+                         WebkitBackdropFilter: 'blur(8px) saturate(1.2)',
+                         border: '1px solid rgba(16,185,129,0.25)'
+                       }}
+                       title="接受这个智能追问"
+                     >
+                       <CheckCircle className="w-4 h-4" />
+                       <span>接受追问</span>
+                     </button>
+                     <button
+                       onClick={() => onNegotiateIntelligentFollowUp && onNegotiateIntelligentFollowUp(message.id)}
+                       className="flex-1 px-3 py-2 text-blue-700 rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm"
+                       style={{
+                         background: 'linear-gradient(135deg, rgba(59,130,246,0.12) 0%, rgba(147,197,253,0.1) 100%)',
+                         backdropFilter: 'blur(8px) saturate(1.2)',
+                         WebkitBackdropFilter: 'blur(8px) saturate(1.2)',
+                         border: '1px solid rgba(59,130,246,0.25)'
+                       }}
+                       title="与AI协商修改智能追问"
+                     >
+                       <MessageCircle className="w-4 h-4" />
+                       <span>协商</span>
+                     </button>
+                     <button
+                       onClick={() => onRejectIntelligentFollowUp && onRejectIntelligentFollowUp(message.id)}
+                       className="flex-1 px-3 py-2 text-red-700 rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm"
+                       style={{
+                         background: 'linear-gradient(135deg, rgba(248,113,113,0.12) 0%, rgba(252,165,165,0.1) 100%)',
+                         backdropFilter: 'blur(8px) saturate(1.2)',
+                         WebkitBackdropFilter: 'blur(8px) saturate(1.2)',
+                         border: '1px solid rgba(248,113,113,0.25)'
+                       }}
+                       title="拒绝并重新选择信息点"
+                     >
+                       <XCircle className="w-4 h-4" />
+                       <span>重新选择</span>
                      </button>
                    </div>
                  )}

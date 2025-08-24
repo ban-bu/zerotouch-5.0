@@ -500,9 +500,19 @@ export const useMessageFlow = (currentScenario) => {
       }
       addMessage('llm', llmMessage)
 
-      // 进入迭代模式，让企业可以编辑追问内容
-      setIterationMode(true)
-      setPendingResponse(llmResult)
+      // 将智能生成的追问添加到方案端，支持协商、拒绝、采纳
+      const intelligentFollowUpMessage = {
+        id: Date.now() + Math.random(),
+        type: 'intelligent_followup',
+        text: llmResult,
+        timestamp: new Date().toISOString(),
+        selectedInfo: selectedOptions,
+        feedbackGiven: false,
+        accepted: false,
+        negotiating: false,
+        negotiated: false
+      }
+      addMessage('solution', intelligentFollowUpMessage)
       setShowMissingInfoPanel(false)
 
     } catch (error) {
@@ -590,7 +600,8 @@ export const useMessageFlow = (currentScenario) => {
         type: 'negotiate_suggestion',
         content: {
           originalSuggestion: originalSuggestion.text,
-          negotiationRequest: negotiationText
+          negotiationRequest: negotiationText,
+          negotiationHistory: originalSuggestion.negotiationHistory || []
         },
         scenario: currentScenario,
         chatHistory: chatHistory
@@ -606,7 +617,7 @@ export const useMessageFlow = (currentScenario) => {
       }
       addMessage('llm', llmMessage)
 
-      // 更新原建议为协商后的版本
+      // 更新原建议为协商后的版本，保留协商历史
       setMessages(prev => ({
         ...prev,
         solution: prev.solution.map(msg => 
@@ -616,8 +627,15 @@ export const useMessageFlow = (currentScenario) => {
                 text: llmResult.suggestionMessage,
                 negotiating: false,
                 negotiated: true,
-                originalText: originalSuggestion.text,
-                negotiationRequest: negotiationText
+                negotiationHistory: [
+                  ...(msg.negotiationHistory || []),
+                  {
+                    previousText: msg.negotiationHistory?.length > 0 ? msg.text : (msg.originalText || msg.text),
+                    negotiationRequest: negotiationText,
+                    timestamp: new Date().toISOString()
+                  }
+                ],
+                originalText: msg.originalText || originalSuggestion.text
               }
             : msg
         )
@@ -647,7 +665,11 @@ export const useMessageFlow = (currentScenario) => {
   }, [generateSuggestion])
 
   // 新增：接受追问
-  const acceptFollowUp = useCallback((followUpId) => {
+  const acceptFollowUp = useCallback((followUpId, onSetInput) => {
+    const followUpMessage = messages.solution.find(msg => msg.id === followUpId)
+    if (!followUpMessage) return
+
+    // 标记为已接受
     setMessages(prev => ({
       ...prev,
       solution: prev.solution.map(msg => 
@@ -656,7 +678,12 @@ export const useMessageFlow = (currentScenario) => {
           : msg
       )
     }))
-  }, [])
+
+    // 将追问内容填入输入框
+    if (onSetInput && typeof onSetInput === 'function') {
+      onSetInput(followUpMessage.text)
+    }
+  }, [messages.solution])
 
   // 新增：与AI协商追问
   const negotiateFollowUp = useCallback((followUpId) => {
@@ -684,7 +711,7 @@ export const useMessageFlow = (currentScenario) => {
   }, [])
 
   // 新增：发送追问协商请求
-  const sendFollowUpNegotiationRequest = useCallback(async (followUpId, negotiationText) => {
+  const sendFollowUpNegotiationRequest = useCallback(async (followUpId, negotiationText, onSetInput) => {
     if (!negotiationText.trim()) return
 
     try {
@@ -707,7 +734,8 @@ export const useMessageFlow = (currentScenario) => {
         type: 'negotiate_followup',
         content: {
           originalFollowUp: originalFollowUp.text,
-          negotiationRequest: negotiationText
+          negotiationRequest: negotiationText,
+          negotiationHistory: originalFollowUp.negotiationHistory || []
         },
         scenario: currentScenario,
         chatHistory: chatHistory
@@ -723,7 +751,7 @@ export const useMessageFlow = (currentScenario) => {
       }
       addMessage('llm', llmMessage)
 
-      // 更新原追问为协商后的版本
+      // 更新原追问为协商后的版本，保留协商历史
       setMessages(prev => ({
         ...prev,
         solution: prev.solution.map(msg => 
@@ -733,12 +761,24 @@ export const useMessageFlow = (currentScenario) => {
                 text: llmResult.followUpMessage,
                 negotiating: false,
                 negotiated: true,
-                originalText: originalFollowUp.text,
-                negotiationRequest: negotiationText
+                negotiationHistory: [
+                  ...(msg.negotiationHistory || []),
+                  {
+                    previousText: msg.negotiationHistory?.length > 0 ? msg.text : (msg.originalText || msg.text),
+                    negotiationRequest: negotiationText,
+                    timestamp: new Date().toISOString()
+                  }
+                ],
+                originalText: msg.originalText || originalFollowUp.text
               }
             : msg
         )
       }))
+
+      // 协商完成后，将协商后的追问自动填入输入框
+      if (onSetInput && typeof onSetInput === 'function') {
+        onSetInput(llmResult.followUpMessage)
+      }
 
     } catch (error) {
       console.error('协商追问错误:', error)
@@ -762,6 +802,144 @@ export const useMessageFlow = (currentScenario) => {
     // 重新生成追问
     await generateFollowUp()
   }, [generateFollowUp])
+
+  // 新增：接受智能追问
+  const acceptIntelligentFollowUp = useCallback((followUpId, onSetInput) => {
+    const followUpMessage = messages.solution.find(msg => msg.id === followUpId)
+    if (!followUpMessage) return
+
+    // 标记为已接受
+    setMessages(prev => ({
+      ...prev,
+      solution: prev.solution.map(msg => 
+        msg.id === followUpId 
+          ? { ...msg, feedbackGiven: true, accepted: true }
+          : msg
+      )
+    }))
+
+    // 将追问内容填入输入框
+    if (onSetInput && typeof onSetInput === 'function') {
+      onSetInput(followUpMessage.text)
+    }
+  }, [messages.solution])
+
+  // 新增：拒绝智能追问
+  const rejectIntelligentFollowUp = useCallback(async (followUpId) => {
+    // 标记追问为已拒绝
+    setMessages(prev => ({
+      ...prev,
+      solution: prev.solution.map(msg => 
+        msg.id === followUpId 
+          ? { ...msg, feedbackGiven: true, accepted: false }
+          : msg
+      )
+    }))
+
+    // 可以选择重新生成或者回到信息选择界面
+    setShowMissingInfoPanel(true)
+  }, [])
+
+  // 新增：协商智能追问
+  const negotiateIntelligentFollowUp = useCallback((followUpId) => {
+    setMessages(prev => ({
+      ...prev,
+      solution: prev.solution.map(msg => 
+        msg.id === followUpId 
+          ? { ...msg, negotiating: true }
+          : msg
+      )
+    }))
+  }, [])
+
+  // 新增：取消智能追问协商
+  const cancelIntelligentFollowUpNegotiation = useCallback((followUpId) => {
+    setMessages(prev => ({
+      ...prev,
+      solution: prev.solution.map(msg => 
+        msg.id === followUpId 
+          ? { ...msg, negotiating: false }
+          : msg
+      )
+    }))
+  }, [])
+
+  // 新增：发送智能追问协商请求
+  const sendIntelligentFollowUpNegotiationRequest = useCallback(async (followUpId, negotiationText, onSetInput) => {
+    if (!negotiationText.trim()) return
+
+    try {
+      // 获取原始追问
+      const originalFollowUp = messages.solution.find(msg => msg.id === followUpId)
+      if (!originalFollowUp) return
+
+      // 构建协商上下文
+      const chatHistory = [
+        ...messages.problem
+          .filter(msg => msg.type === 'user' || msg.type === 'ai_response')
+          .map(msg => ({ ...msg, panel: 'problem' })),
+        ...messages.solution
+          .filter(msg => msg.type === 'llm_request' || msg.type === 'user' || msg.type === 'ai_response')
+          .map(msg => ({ ...msg, panel: 'solution' }))
+      ].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+
+      // 生成协商后的追问
+      const llmResult = await processWithLLM({
+        type: 'negotiate_followup',
+        content: {
+          originalFollowUp: originalFollowUp.text,
+          negotiationRequest: negotiationText,
+          negotiationHistory: originalFollowUp.negotiationHistory || []
+        },
+        scenario: currentScenario,
+        chatHistory: chatHistory
+      })
+
+      // 添加LLM处理过程到中介面板
+      const llmMessage = {
+        type: 'processing',
+        title: '协商修改智能追问',
+        steps: llmResult.steps,
+        output: llmResult.followUpMessage,
+        timestamp: new Date().toISOString()
+      }
+      addMessage('llm', llmMessage)
+
+      // 更新原追问为协商后的版本，保留协商历史
+      setMessages(prev => ({
+        ...prev,
+        solution: prev.solution.map(msg => 
+          msg.id === followUpId 
+            ? { 
+                ...msg, 
+                text: llmResult.followUpMessage,
+                negotiating: false,
+                negotiated: true,
+                negotiationHistory: [
+                  ...(msg.negotiationHistory || []),
+                  {
+                    previousText: msg.negotiationHistory?.length > 0 ? msg.text : (msg.originalText || msg.text),
+                    negotiationRequest: negotiationText,
+                    timestamp: new Date().toISOString()
+                  }
+                ],
+                originalText: msg.originalText || originalFollowUp.text
+              }
+            : msg
+        )
+      }))
+
+      // 协商完成后，将协商后的追问自动填入输入框
+      if (onSetInput && typeof onSetInput === 'function') {
+        onSetInput(llmResult.followUpMessage)
+      }
+
+    } catch (error) {
+      console.error('协商智能追问错误:', error)
+      // 协商失败，退出协商模式
+      cancelIntelligentFollowUpNegotiation(followUpId)
+    }
+  }, [messages.problem, messages.solution, currentScenario, addMessage, cancelIntelligentFollowUpNegotiation])
 
   // 新增：清空所有状态
   const clearAllStates = useCallback(() => {
@@ -802,6 +980,12 @@ export const useMessageFlow = (currentScenario) => {
     cancelFollowUpNegotiation,
     sendFollowUpNegotiationRequest,
     rejectFollowUp,
+    // 智能追问反馈相关方法
+    acceptIntelligentFollowUp,
+    negotiateIntelligentFollowUp,
+    cancelIntelligentFollowUpNegotiation,
+    sendIntelligentFollowUpNegotiationRequest,
+    rejectIntelligentFollowUp,
     // 原有方法
     sendProblemMessage,
     sendSolutionMessage,

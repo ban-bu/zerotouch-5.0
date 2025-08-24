@@ -443,7 +443,6 @@ body {
   -moz-user-select: text !important;
   -ms-user-select: text !important;
   caret-color: #111827;
-  animation: caretBlink 1s step-start infinite;
 }
 
 /* 明确提升输入框文字的选中可见度（避免误以为无法选中） */

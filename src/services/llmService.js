@@ -1,13 +1,13 @@
-// [MODIFIED] Deepbricks LLM处理服务
-// Impact: 切换到 Deepbricks API，模型 GPT-4.1-mini
+// [MODIFIED] ModelScope LLM处理服务
+// Impact: 切换到 ModelScope API，模型 DeepSeek-V3
 // Backward Compatibility: 保留原有函数/常量命名与请求结构，调用方无需改动
 
-// Deepbricks API配置
+// ModelScope API配置
 const MODELSCOPE_CONFIG = {
   // [MODIFIED]
-  baseURL: 'https://api.deepbricks.ai/v1/',
-  model: 'GPT-5-Chat',
-  apiKey: 'sk-lNVAREVHjj386FDCd9McOL7k66DZCUkTp6IbV0u9970qqdlg'
+  baseURL: 'https://api-inference.modelscope.cn/v1/',
+  model: 'deepseek-ai/DeepSeek-V3',
+  apiKey: 'ms-61ecf06f-49de-409b-b685-00a383961042'
 }
 
 // 日志辅助函数（避免输出过长内容和敏感信息）
@@ -206,16 +206,13 @@ const ensureCompleteSentence = (text) => {
   return trimmed + '。'
 }
 
-// 保证为完整问句：末尾统一为问号
+// 保证为完整语句：保持原有标点符号
 const ensureQuestionEnding = (text) => {
   if (!text) return text
   let trimmed = text.trim()
-  // 若以句号/叹号/英文句点结尾，替换为问号
-  if (/[。.!！]$/.test(trimmed)) {
-    trimmed = trimmed.replace(/[。.!！]$/, '？')
-  }
-  if (!/[？?]$/.test(trimmed)) {
-    trimmed = trimmed + '？'
+  // 如果没有任何标点符号结尾，添加句号
+  if (!/[。.!！？?]$/.test(trimmed)) {
+    trimmed = trimmed + '。'
   }
   return trimmed
 }
@@ -505,7 +502,7 @@ ${prompt.instruction}
 请分析这个输入，如果是不当言语或无意义内容，请进行智能处理。`
       }
     ]
-    const resultRaw = await callModelScopeAPI(comprehensivePrompt, 0.1, 800)
+    const resultRaw = await callModelScopeAPI(comprehensivePrompt, 0.1, 2048)
     const result = sanitizeOutput(resultRaw)
 
     // [MODIFIED] 使用健壮解析，避免将AI建议再次转译
@@ -614,14 +611,14 @@ const processSolutionResponse = async (content, scenario, chatHistory = []) => {
     const comprehensivePrompt = [
       {
         role: 'system',
-        content: `${prompt.systemRole}\n\n${prompt.context}\n\n${prompt.example}\n\n${enhancedInstructions[scenario]}`
+        content: `${prompt.systemRole}\n\n${prompt.context}\n\n${enhancedInstructions[scenario]}`
       },
       {
         role: 'user',
         content: `企业方案端回复："${content}"${chatContext}\n\n请按照以下结构输出：\n\n【优化回复】\n将企业回复转化为客户友好、易懂的完整表达。如果需要给客户提供行动建议，请直接融入到回复中，使用自然的语言，不要使用"选项1、选项2"这种格式，而是用"您可以..."、"建议您..."、"如果您需要..."这样的自然表达。\n\n【内部备注】\n（仅供系统参考，不发送给客户）记录处理要点和注意事项\n\n【补充说明】\n如有需要单独说明的重要信息，请列出（如无则写"无"）`
       }
     ]
-    const resultRaw = await callModelScopeAPI(comprehensivePrompt, 0.1, 1000)
+    const resultRaw = await callModelScopeAPI(comprehensivePrompt, 0.1, 3072)
     const result = sanitizeOutput(resultRaw)
 
     // 解析结构化输出
@@ -688,18 +685,15 @@ const generateEnterpriseSuggestion = async (content, scenario, chatHistory = [])
     const scenarioPrompts = {
       retail: {
         systemRole: '你是一位专业的零售顾问，专门为企业门店提供销售建议和解决方案，同时智能过滤和转化不当表达，确保沟通专业化。',
-        context: '基于客户的需求和企业的情况，提供专业的销售建议，包括产品推荐、价格策略、服务方案等。',
-        example: '客户需求："需要商务西装，预算800-1500元"\n建议："建议推荐三款产品：1)经典款A123，售价1280元，意大利面料，免费修改；2)现代款B456，售价1150元，舒适透气；3)高端款C789，售价1350元，时尚剪裁。重点推荐A123，性价比最高，适合商务场合。"'
+        context: '基于客户的需求和企业的情况，提供专业的销售建议，包括产品推荐、价格策略、服务方案等。'
       },
       enterprise: {
         systemRole: '你是一位专业的企业技术顾问，专门为技术团队提供解决方案建议，同时智能过滤和转化不当表达，确保沟通专业化。',
-        context: '基于业务需求和技术现状，提供技术方案建议，包括架构设计、技术选型、实施计划等。',
-        example: '业务需求："提升用户体验，3个月内完成"\n建议："建议采用渐进式优化方案：第一阶段(1个月)优化现有界面，第二阶段(1.5个月)重构核心流程，第三阶段(0.5个月)性能优化。预计投入3名开发人员，总成本30万元。"'
+        context: '基于业务需求和技术现状，提供技术方案建议，包括架构设计、技术选型、实施计划等。'
       },
       education: {
         systemRole: '你是一位专业的教育顾问，专门为教师提供教学方案建议，同时智能过滤和转化不当表达，确保沟通专业化。',
-        context: '基于学生的学习需求和教学现状，提供教学建议，包括教学方法、课程安排、学习指导等。',
-        example: '学生需求："理解量子物理波粒二象性"\n建议："建议采用三步教学法：1)通过双缝实验视频建立直观认知；2)用光电效应实验理解粒子性；3)通过计算题巩固理解。预计需要4课时，建议准备实验材料。"'
+        context: '基于学生的学习需求和教学现状，提供教学建议，包括教学方法、课程安排、学习指导等。'
       }
     }
 
@@ -745,51 +739,40 @@ const generateEnterpriseSuggestion = async (content, scenario, chatHistory = [])
       {
         role: 'system',
         content: `${prompt.systemRole}\n\n${prompt.context}\n\n${prompt.example}\n\n重要要求：
-1) 只输出一段简洁建议，直达要点；
-2) 控制在40-60个汉字以内（确保在API token限制内完整输出）；
-3) 避免分点、编号、过多铺垫；
-4) 保持可执行与落地性；
-5) 句子必须完整，并以中文句号结尾；
-6) 优先确保句子完整性，宁可稍微简短也要语句完整。`
+1) 输出简洁建议，直达要点；
+2) 避免分点、编号、过多铺垫；
+3) 保持可执行与落地性；
+4) 语句完整通顺。
+
+【防止幻觉的关键原则】：
+- 建议必须严格基于提供的对话内容，不得臆测或添加虚假信息
+- 不要提及对话中未出现的具体产品名称、价格、时间等细节
+- 如果对话信息不足，建议先了解相关信息，而不是编造内容
+- 专注于实际可执行的操作建议，避免过度具体化不存在的信息
+- 保持诚实，承认信息不足的情况，而不是编造细节`
       },
       {
         role: 'user',
-        content: `当前对话内容："${content}"${chatContext}\n\n请给出一段简洁完整的建议（控制在40-60个汉字，不得分点），确保语句完整，突出可执行要点。`
+        content: `当前对话内容："${content}"${chatContext}\n\n请基于以上真实的对话内容给出简洁的建议，突出可执行要点。请确保建议完全基于实际对话信息，不要添加任何虚假或未提及的细节。`
       }
     ]
     
-    let resultRaw = await callModelScopeAPI(comprehensivePrompt, 0.3, 100)
+    let resultRaw = await callModelScopeAPI(comprehensivePrompt, 0.7, 2048)
     let result = sanitizeFollowUpOutput(resultRaw)
     result = stripLeadingPleasantries(result)
 
     // 若输出过弱/未成句，则进行一次严格提示的重试（降温+明确禁止寒暄）
     if (isWeakOneSentence(result)) {
       const strictPrompt = [
-        { role: 'system', content: `${prompt.systemRole}\n\n${prompt.context}\n\n${prompt.example}\n\n重要要求：\n1) 仅输出一段核心建议，禁止寒暄、问候与客套；\n2) 控制在40-60个汉字以内，确保语句完整；\n3) 不分点；\n4) 必须完整成句并以中文句号结尾；\n5) 优先确保句子完整性。` },
-        { role: 'user', content: `当前对话内容："${content}"${chatContext}\n\n请直接给出核心建议，禁止寒暄与铺垫。` }
+        { role: 'system', content: `${prompt.systemRole}\n\n${prompt.context}\n\n重要要求：\n1) 输出完整详细的建议，包含具体方案和实施步骤；\n2) 确保语句完整通顺，避免截断；\n3) 提供至少50字以上的详细建议。\n\n【防止幻觉】：严格基于对话内容，不得编造具体产品、价格、时间等细节信息。` },
+        { role: 'user', content: `当前对话内容："${content}"${chatContext}\n\n请基于真实对话内容提供详细完整的建议，包含具体的实施方案和预期效果。不要添加对话中未提及的具体细节。` }
       ]
-      resultRaw = await callModelScopeAPI(strictPrompt, 0.1, 100)
+      resultRaw = await callModelScopeAPI(strictPrompt, 0.7, 2048)
       result = stripLeadingPleasantries(sanitizeFollowUpOutput(resultRaw))
     }
 
-    // 简化处理，并进行硬性裁剪：最多50词
-    const raw = result.trim()
-    const suggestionMessage = (() => {
-      // 以空白切分词（兼容中英混合）。为中文进一步尝试基于标点/空白近似切词
-      const tokens = raw
-        .replace(/\s+/g, ' ')
-        .replace(/[，。；、]/g, ' ')
-        .trim()
-        .split(' ')
-        .filter(Boolean)
-      if (tokens.length <= 50) return raw
-      const clipped = tokens.slice(0, 50).join(' ')
-      // 若被裁剪，补上省略号
-      return clipped + '…'
-    })()
-
-    // 确保为完整句子并以句号结尾，避免“被截断”的观感
-    const suggestionMessageFinal = ensureCompleteSentence(suggestionMessage)
+    // 直接使用结果，无长度限制
+    const suggestionMessageFinal = ensureCompleteSentence(result.trim())
 
     // 构建步骤显示
     const steps = [
@@ -878,29 +861,36 @@ const generateEnterpriseFollowUp = async (content, scenario, chatHistory = []) =
     const comprehensivePrompt = [
       {
         role: 'system',
-        content: `${prompt.systemRole}\n\n${prompt.context}\n\n${prompt.example}\n\n重要要求：生成的追问必须简洁自然，长度在30-80字之间，直接询问最关键的信息，确保问题具体明确。`
+        content: `${prompt.systemRole}\n\n${prompt.context}\n\n重要要求：
+1) 只生成一句简洁的追问，不要多句话
+2) 追问要直击要点，询问最关键的信息
+3) 语句自然流畅，以问号结尾
+4) 避免冗长的表达，保持简洁明了
+5) 专注于最需要了解的核心信息点`
       },
       {
         role: 'user',
-        content: `当前对话内容："${content}"${chatContext}\n\n请生成一个简洁明确的追问（30-80字），深入了解关键信息。`
+        content: `当前对话内容："${content}"${chatContext}\n\n请生成一句简洁的追问，直击要点，询问最关键的信息。只需要一句话即可。`
       }
     ]
     
-    let resultRaw = await callModelScopeAPI(comprehensivePrompt, 0.3, 120)
+    let resultRaw = await callModelScopeAPI(comprehensivePrompt, 0.7, 1024)
     let result = sanitizeFollowUpOutput(resultRaw)
     result = stripLeadingPleasantries(result)
 
-    // 若过短或疑似未成句，严格重试一次
-    if (isWeakOneSentence(result)) {
+    // 检查是否为有效的单句追问，如果不符合要求则重试
+    if (result.length < 10 || !result.includes('？') || result.split('？').filter(q => q.trim()).length > 1) {
+      console.log('🔄 检测到追问不符合单句要求，进行重试...')
       const strictPrompt = [
-        { role: 'system', content: `${prompt.systemRole}\n\n${prompt.context}\n\n${prompt.example}\n\n重要要求：\n1) 仅输出一个自然问句，禁止寒暄；\n2) 长度30-80字；\n3) 必须完整成句并以问号结尾。` },
-        { role: 'user', content: `当前对话内容："${content}"${chatContext}\n\n请直接给出一个自然问句，禁止寒暄与铺垫。` }
+        { role: 'system', content: `${prompt.systemRole}\n\n${prompt.context}\n\n严格要求：\n1) 只能输出一句追问，以问号结尾\n2) 确保语句完整通顺，不能有截断\n3) 专注于最核心的信息点\n4) 避免多个问题，只问一个最重要的\n5) 表达要简洁明了，便于客户回答` },
+        { role: 'user', content: `当前对话内容："${content}"${chatContext}\n\n请生成一句简洁的追问，只要一句话，以问号结尾。专注于最关键的信息。` }
       ]
-      resultRaw = await callModelScopeAPI(strictPrompt, 0.1, 120)
+      resultRaw = await callModelScopeAPI(strictPrompt, 0.8, 1024)
       result = stripLeadingPleasantries(sanitizeFollowUpOutput(resultRaw))
+      console.log('🔄 重试结果:', result)
     }
 
-    // 简化处理，直接使用结果；确保问句完整且以问号结尾
+    // 简化处理，直接使用结果；确保语句完整
     const followUpMessage = ensureQuestionEnding(result.trim())
 
     // 构建步骤显示
@@ -940,7 +930,7 @@ const analyzeContext = async (content) => {
       content: `用户输入："${content}"\n\n请分析这个输入可能涉及的业务场景、行业背景或使用环境。`
     }
   ]
-  return await callModelScopeAPI(prompt, 0.7, 500)
+  return await callModelScopeAPI(prompt, 0.7, 1024)
 }
 
 const conceptualize = async (content) => {
@@ -954,7 +944,7 @@ const conceptualize = async (content) => {
       content: `基于用户输入："${content}"\n\n请将其概念化为具体的功能需求或解决方案要点。`
     }
   ]
-  return await callModelScopeAPI(prompt, 0.7, 500)
+  return await callModelScopeAPI(prompt, 0.7, 1024)
 }
 
 const detectMissingInfo = async (content) => {
@@ -968,7 +958,7 @@ const detectMissingInfo = async (content) => {
       content: `用户输入："${content}"\n\n请识别为了更好地理解和满足用户需求，还需要哪些额外信息？`
     }
   ]
-  return await callModelScopeAPI(prompt, 0.7, 400)
+  return await callModelScopeAPI(prompt, 0.7, 1024)
 }
 
 const translateToSolution = async (content) => {
@@ -982,7 +972,7 @@ const translateToSolution = async (content) => {
       content: `用户原始输入："${content}"\n\n请将其转化为清晰、专业的需求描述，包含具体的功能要求和期望结果。`
     }
   ]
-  return await callModelScopeAPI(prompt, 0.7, 400)
+  return await callModelScopeAPI(prompt, 0.7, 1024)
 }
 
 const optimizeForUser = async (content) => {
@@ -996,7 +986,7 @@ const optimizeForUser = async (content) => {
       content: `技术方案："${content}"\n\n请将其转化为用户友好的语言，包含清晰的步骤和预期结果。`
     }
   ]
-  return await callModelScopeAPI(prompt, 0.7, 600)
+  return await callModelScopeAPI(prompt, 0.7, 1024)
 }
 
 // 智能需求分析和信息缺失检测 - 精准版本
@@ -1106,7 +1096,7 @@ ${prompt.instruction}
       }
     ]
 
-    const result = await callModelScopeAPI(comprehensivePrompt, 0.1, 800)
+    const result = await callModelScopeAPI(comprehensivePrompt, 0.7, 2048)
     const sanitizedResult = sanitizeOutput(result)
     
     // 解析结果
@@ -1173,18 +1163,27 @@ const negotiateSuggestion = async (content, scenario, chatHistory = []) => {
 请根据客户的协商要求，对原始建议进行修改和优化。
 
 输出要求：
-1. 必须包含【处理步骤】部分，详细说明协商处理过程
-2. 必须包含【优化建议】部分，提供修改后的完整建议
-3. 建议要具体、可操作、符合客户的协商要求
-4. 保持专业性和实用性`
+1. 直接输出优化后的完整建议，不需要格式标记
+2. 建议要具体、可操作、符合客户的协商要求
+3. 保持专业性和实用性，确保语句完整通顺
+4. 避免分点列举，使用自然连贯的语句表达`
 
-    const userPrompt = `原始建议：
+    // 构建协商历史信息
+    let negotiationHistoryText = ''
+    if (content.negotiationHistory && content.negotiationHistory.length > 0) {
+      negotiationHistoryText = '\n\n协商历史：\n' + 
+        content.negotiationHistory.map((nego, index) => 
+          `第${index + 1}次协商：${nego.negotiationRequest}`
+        ).join('\n')
+    }
+
+    const userPrompt = `当前建议：
 ${content.originalSuggestion}
 
-客户协商请求：
-${content.negotiationRequest}
+最新协商请求：
+${content.negotiationRequest}${negotiationHistoryText}
 
-请根据客户的协商要求，优化上述建议。${chatContext}`
+请基于以上所有协商历史，直接输出优化后的完整建议，确保内容完整、语句通顺。${chatContext}`
 
     const messages = [
       { role: 'system', content: systemPrompt },
@@ -1192,21 +1191,17 @@ ${content.negotiationRequest}
     ]
 
     console.log('发送协商请求到LLM...')
-    const response = await callModelScopeAPI(messages, 0.7, 600)
+    const response = await callModelScopeAPI(messages, 0.7, 3072)
     console.log('LLM协商响应:', truncateForLog(response))
 
     const sanitized = sanitizeFollowUpOutput(response)
-    const sections = parseSectionsRobust(sanitized)
-
-    const steps = sections['处理步骤'] || ['正在分析协商请求...', '优化原始建议...', '生成协商后建议...']
-    const suggestionMessage = sections['优化建议'] || sanitized
+    const suggestionMessage = ensureCompleteSentence(sanitized.trim())
 
     console.log('协商处理完成')
-    console.log('处理步骤:', steps)
     console.log('优化建议:', truncateForLog(suggestionMessage))
 
     return {
-      steps,
+      steps: [{ name: '协商优化', content: suggestionMessage }],
       suggestionMessage
     }
 
@@ -1284,11 +1279,12 @@ const generateQuestionsBySelectedInfo = async (originalContent, selectedInfoItem
 
 ${prompt.context}
 
-${prompt.example}
-
 ${enhancedInstructions[scenario]}
 
-重要要求：生成的追问必须简洁自然，长度在30-80字之间，将所有选中的信息点自然融合成一个问句，确保问题具体明确且以问号结尾。`
+        重要要求：
+1) 只生成一句简洁的询问语句，不要多句话；
+2) 将所有选中的信息点自然融合成一个语句；
+3) 确保内容具体明确且语句完整，以问号结尾。`
       },
       {
         role: 'user',
@@ -1299,25 +1295,25 @@ ${selectedItems}
 
 ${chatContext}
 
-请基于以上选中的信息点生成一个简洁明确的追问（30-80字），自然融合所有信息点。`
+请基于以上选中的信息点生成一句简洁明确的询问语句，自然融合所有信息点。只要一句话即可。`
       }
     ]
     
-    let resultRaw = await callModelScopeAPI(comprehensivePrompt, 0.3, 120)
+    let resultRaw = await callModelScopeAPI(comprehensivePrompt, 0.7, 1024)
     let result = sanitizeFollowUpOutput(resultRaw)
     result = stripLeadingPleasantries(result)
 
-    // 若输出过弱/未成句，则进行一次严格提示的重试
-    if (isWeakOneSentence(result)) {
+    // 检查是否为有效的单句追问，如果不符合要求则重试
+    if (result.length < 10 || !result.includes('？') || result.split('？').filter(q => q.trim()).length > 1) {
       const strictPrompt = [
-        { role: 'system', content: `${prompt.systemRole}\n\n${prompt.context}\n\n${prompt.example}\n\n重要要求：\n1) 仅输出一个自然问句，禁止寒暄、问候与客套；\n2) 长度30-80字；\n3) 必须包含所有选中的信息点；\n4) 必须完整成句并以问号结尾。` },
-        { role: 'user', content: `原始需求："${originalContent}"\n\n选中的信息点：\n${selectedItems}\n\n请直接给出融合所有信息点的追问，禁止寒暄与铺垫。${chatContext}` }
+        { role: 'system', content: `${prompt.systemRole}\n\n${prompt.context}\n\n重要要求：\n1) 只能输出一句追问，以问号结尾；\n2) 必须包含所有选中的信息点；\n3) 语句简洁明了，避免冗长表达。` },
+        { role: 'user', content: `原始需求："${originalContent}"\n\n选中的信息点：\n${selectedItems}\n\n请生成一句简洁的追问，自然融合所有信息点。只要一句话即可。${chatContext}` }
       ]
-      resultRaw = await callModelScopeAPI(strictPrompt, 0.1, 120)
+      resultRaw = await callModelScopeAPI(strictPrompt, 0.7, 1024)
       result = stripLeadingPleasantries(sanitizeFollowUpOutput(resultRaw))
     }
 
-    // 确保问句完整且以问号结尾
+    // 确保语句完整
     const followUpMessage = ensureQuestionEnding(result.trim())
 
     console.groupCollapsed('[LLM] Parsed -> generate_questions_by_selected_info')
@@ -1347,19 +1343,27 @@ const negotiateFollowUp = async (content, scenario, chatHistory = []) => {
 请根据客户的协商要求，对原始追问进行修改和优化。
 
 输出要求：
-1. 必须包含【处理步骤】部分，详细说明协商处理过程
-2. 必须包含【优化追问】部分，提供修改后的完整追问
-3. 追问要具体、可操作、符合客户的协商要求
-4. 保持专业性和实用性
-5. 长度控制在30-80字之间`
+1. 直接输出优化后的完整追问，不需要格式标记
+2. 追问要具体、可操作、符合客户的协商要求
+3. 保持专业性和实用性，确保语句完整通顺
+4. 避免分点列举，使用自然连贯的语句表达`
 
-    const userPrompt = `原始追问：
+    // 构建协商历史信息
+    let negotiationHistoryText = ''
+    if (content.negotiationHistory && content.negotiationHistory.length > 0) {
+      negotiationHistoryText = '\n\n协商历史：\n' + 
+        content.negotiationHistory.map((nego, index) => 
+          `第${index + 1}次协商：${nego.negotiationRequest}`
+        ).join('\n')
+    }
+
+    const userPrompt = `当前追问：
 ${content.originalFollowUp}
 
-客户协商请求：
-${content.negotiationRequest}
+最新协商请求：
+${content.negotiationRequest}${negotiationHistoryText}
 
-请根据客户的协商要求，优化上述追问。${chatContext}`
+请基于以上所有协商历史，直接输出优化后的完整追问，确保内容完整、语句通顺。${chatContext}`
 
     const messages = [
       { role: 'system', content: systemPrompt },
@@ -1367,21 +1371,17 @@ ${content.negotiationRequest}
     ]
 
     console.log('发送协商追问请求到LLM...')
-    const response = await callModelScopeAPI(messages, 0.7, 600)
+    const response = await callModelScopeAPI(messages, 0.7, 2048)
     console.log('LLM协商追问响应:', truncateForLog(response))
 
     const sanitized = sanitizeFollowUpOutput(response)
-    const sections = parseSectionsRobust(sanitized)
-
-    const steps = sections['处理步骤'] || ['正在分析协商请求...', '优化原始追问...', '生成协商后追问...']
-    const followUpMessage = sections['优化追问'] || sanitized
+    const followUpMessage = ensureQuestionEnding(sanitized.trim())
 
     console.log('协商追问处理完成')
-    console.log('处理步骤:', steps)
     console.log('优化追问:', truncateForLog(followUpMessage))
 
     return {
-      steps,
+      steps: [{ name: '协商优化', content: followUpMessage }],
       followUpMessage
     }
 

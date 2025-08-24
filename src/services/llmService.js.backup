@@ -2,12 +2,12 @@
 // Impact: 切换到 Deepbricks API，模型 GPT-4.1-mini
 // Backward Compatibility: 保留原有函数/常量命名与请求结构，调用方无需改动
 
-// Deepbricks API配置
+// ModelScope API配置
 const MODELSCOPE_CONFIG = {
   // [MODIFIED]
-  baseURL: 'https://api.deepbricks.ai/v1/',
-  model: 'GPT-5-Chat',
-  apiKey: 'sk-lNVAREVHjj386FDCd9McOL7k66DZCUkTp6IbV0u9970qqdlg'
+  baseURL: 'https://api-inference.modelscope.cn/v1/',
+  model: 'deepseek-ai/DeepSeek-V3',
+  apiKey: 'ms-61ecf06f-49de-409b-b685-00a383961042'
 }
 
 // 日志辅助函数（避免输出过长内容和敏感信息）

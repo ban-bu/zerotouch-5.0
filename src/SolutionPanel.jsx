@@ -10,8 +10,18 @@ const SolutionPanel = ({ scenario, messages, onSendMessage, isProcessing }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
+  // 智能滚动：只在用户接近底部时才自动滚动
   useEffect(() => {
-    scrollToBottom()
+    const container = messagesEndRef.current?.parentElement
+    if (!container) return
+
+    // 检查用户是否接近底部（距离底部小于100px）
+    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100
+    
+    // 只有在用户接近底部时才自动滚动
+    if (isNearBottom) {
+      setTimeout(() => scrollToBottom(), 100) // 短暂延迟确保内容已渲染
+    }
   }, [messages])
 
   const handleSubmit = (e) => {
