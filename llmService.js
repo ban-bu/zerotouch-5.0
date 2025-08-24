@@ -1272,8 +1272,8 @@ ${enhancedInstructions[scenario]}
 
 重要要求：
 1) 生成简洁自然的询问语句；
-2) 将所有选中的信息点自然融合成一个语句；
-3) 确保内容具体明确且语句完整。`
+
+2) 确保内容具体明确且语句完整。`
       },
       {
         role: 'user',
@@ -1284,7 +1284,7 @@ ${selectedItems}
 
 ${chatContext}
 
-请基于以上选中的信息点生成简洁明确的询问语句，自然融合所有信息点。`
+请基于以上选中的信息点生成简洁明确的询问语句。`
       }
     ]
     
@@ -1296,7 +1296,7 @@ ${chatContext}
     if (isWeakOneSentence(result)) {
       const strictPrompt = [
         { role: 'system', content: `${prompt.systemRole}\n\n${prompt.context}\n\n${prompt.example}\n\n重要要求：\n1) 仅输出简洁的自然语句，禁止寒暄、问候与客套；\n2) 必须包含所有选中的信息点；\n3) 语句完整通顺。` },
-        { role: 'user', content: `原始需求："${originalContent}"\n\n选中的信息点：\n${selectedItems}\n\n请直接给出简洁的融合所有信息点的询问语句，禁止寒暄与铺垫。${chatContext}` }
+        { role: 'user', content: `原始需求："${originalContent}"\n\n选中的信息点：\n${selectedItems}\n\n请直接给出简洁的含有所有信息点的询问语句，禁止寒暄与铺垫。${chatContext}` }
       ]
       resultRaw = await callModelScopeAPI(strictPrompt, 0.1)
       result = stripLeadingPleasantries(sanitizeFollowUpOutput(resultRaw))
