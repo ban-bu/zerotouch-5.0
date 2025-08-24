@@ -4,7 +4,7 @@
 const MODELSCOPE_CONFIG = {
   baseURL: 'https://api-inference.modelscope.cn/v1/',
   model: 'deepseek-ai/DeepSeek-V3',
-  apiKey: 'ms-61ecf06f-49de-409b-b685-00a383961042'
+  apiKey: 'ms-20166c50-1172-44eb-8431-5934a9868a1b'
 }
 
 // 调用魔搭API的通用函数
