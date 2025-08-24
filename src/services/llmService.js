@@ -29,7 +29,7 @@ const formatMessagesForLog = (messages) => {
 }
 
 // 调用魔搭API的通用函数
-const callModelScopeAPI = async (messages, temperature = 0.7) => {
+const callModelScopeAPI = async (messages, temperature = 0.7, maxTokens = 4096) => {
   try {
     const isDev = typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV
     console.group('[LLM] Request Details')
@@ -73,7 +73,7 @@ const callModelScopeAPI = async (messages, temperature = 0.7) => {
         model: MODELSCOPE_CONFIG.model,
         messages: messages,
         temperature: temperature,
-        max_tokens: 4096,
+        max_tokens: maxTokens,
         stream: false
       })
     })
@@ -505,7 +505,7 @@ ${prompt.instruction}
 请分析这个输入，如果是不当言语或无意义内容，请进行智能处理。`
       }
     ]
-    const resultRaw = await callModelScopeAPI(comprehensivePrompt, 0.1)
+    const resultRaw = await callModelScopeAPI(comprehensivePrompt, 0.1, 800)
     const result = sanitizeOutput(resultRaw)
 
     // [MODIFIED] 使用健壮解析，避免将AI建议再次转译
@@ -621,7 +621,7 @@ const processSolutionResponse = async (content, scenario, chatHistory = []) => {
         content: `企业方案端回复："${content}"${chatContext}\n\n请按照以下结构输出：\n\n【优化回复】\n将企业回复转化为客户友好、易懂的完整表达。如果需要给客户提供行动建议，请直接融入到回复中，使用自然的语言，不要使用"选项1、选项2"这种格式，而是用"您可以..."、"建议您..."、"如果您需要..."这样的自然表达。\n\n【内部备注】\n（仅供系统参考，不发送给客户）记录处理要点和注意事项\n\n【补充说明】\n如有需要单独说明的重要信息，请列出（如无则写"无"）`
       }
     ]
-    const resultRaw = await callModelScopeAPI(comprehensivePrompt, 0.1)
+    const resultRaw = await callModelScopeAPI(comprehensivePrompt, 0.1, 1000)
     const result = sanitizeOutput(resultRaw)
 
     // 解析结构化输出
@@ -746,28 +746,29 @@ const generateEnterpriseSuggestion = async (content, scenario, chatHistory = [])
         role: 'system',
         content: `${prompt.systemRole}\n\n${prompt.context}\n\n${prompt.example}\n\n重要要求：
 1) 只输出一段简洁建议，直达要点；
-2) 绝不超过50个词（中文按词语计，英文按单词计）；
+2) 控制在40-60个汉字以内（确保在API token限制内完整输出）；
 3) 避免分点、编号、过多铺垫；
 4) 保持可执行与落地性；
-5) 句子必须完整，并以中文句号结尾。`
+5) 句子必须完整，并以中文句号结尾；
+6) 优先确保句子完整性，宁可稍微简短也要语句完整。`
       },
       {
         role: 'user',
-        content: `当前对话内容："${content}"${chatContext}\n\n请给出不超过50词的一段建议（不得分点），突出可执行要点。`
+        content: `当前对话内容："${content}"${chatContext}\n\n请给出一段简洁完整的建议（控制在40-60个汉字，不得分点），确保语句完整，突出可执行要点。`
       }
     ]
     
-    let resultRaw = await callModelScopeAPI(comprehensivePrompt, 0.3)
+    let resultRaw = await callModelScopeAPI(comprehensivePrompt, 0.3, 100)
     let result = sanitizeFollowUpOutput(resultRaw)
     result = stripLeadingPleasantries(result)
 
     // 若输出过弱/未成句，则进行一次严格提示的重试（降温+明确禁止寒暄）
     if (isWeakOneSentence(result)) {
       const strictPrompt = [
-        { role: 'system', content: `${prompt.systemRole}\n\n${prompt.context}\n\n${prompt.example}\n\n重要要求：\n1) 仅输出一段核心建议，禁止寒暄、问候与客套；\n2) 不超过50个词；\n3) 不分点；\n4) 必须完整成句并以中文句号结尾。` },
+        { role: 'system', content: `${prompt.systemRole}\n\n${prompt.context}\n\n${prompt.example}\n\n重要要求：\n1) 仅输出一段核心建议，禁止寒暄、问候与客套；\n2) 控制在40-60个汉字以内，确保语句完整；\n3) 不分点；\n4) 必须完整成句并以中文句号结尾；\n5) 优先确保句子完整性。` },
         { role: 'user', content: `当前对话内容："${content}"${chatContext}\n\n请直接给出核心建议，禁止寒暄与铺垫。` }
       ]
-      resultRaw = await callModelScopeAPI(strictPrompt, 0.1)
+      resultRaw = await callModelScopeAPI(strictPrompt, 0.1, 100)
       result = stripLeadingPleasantries(sanitizeFollowUpOutput(resultRaw))
     }
 
@@ -885,7 +886,7 @@ const generateEnterpriseFollowUp = async (content, scenario, chatHistory = []) =
       }
     ]
     
-    let resultRaw = await callModelScopeAPI(comprehensivePrompt, 0.3)
+    let resultRaw = await callModelScopeAPI(comprehensivePrompt, 0.3, 120)
     let result = sanitizeFollowUpOutput(resultRaw)
     result = stripLeadingPleasantries(result)
 
@@ -895,7 +896,7 @@ const generateEnterpriseFollowUp = async (content, scenario, chatHistory = []) =
         { role: 'system', content: `${prompt.systemRole}\n\n${prompt.context}\n\n${prompt.example}\n\n重要要求：\n1) 仅输出一个自然问句，禁止寒暄；\n2) 长度30-80字；\n3) 必须完整成句并以问号结尾。` },
         { role: 'user', content: `当前对话内容："${content}"${chatContext}\n\n请直接给出一个自然问句，禁止寒暄与铺垫。` }
       ]
-      resultRaw = await callModelScopeAPI(strictPrompt, 0.1)
+      resultRaw = await callModelScopeAPI(strictPrompt, 0.1, 120)
       result = stripLeadingPleasantries(sanitizeFollowUpOutput(resultRaw))
     }
 
@@ -939,7 +940,7 @@ const analyzeContext = async (content) => {
       content: `用户输入："${content}"\n\n请分析这个输入可能涉及的业务场景、行业背景或使用环境。`
     }
   ]
-  return await callModelScopeAPI(prompt)
+  return await callModelScopeAPI(prompt, 0.7, 500)
 }
 
 const conceptualize = async (content) => {
@@ -953,7 +954,7 @@ const conceptualize = async (content) => {
       content: `基于用户输入："${content}"\n\n请将其概念化为具体的功能需求或解决方案要点。`
     }
   ]
-  return await callModelScopeAPI(prompt)
+  return await callModelScopeAPI(prompt, 0.7, 500)
 }
 
 const detectMissingInfo = async (content) => {
@@ -967,7 +968,7 @@ const detectMissingInfo = async (content) => {
       content: `用户输入："${content}"\n\n请识别为了更好地理解和满足用户需求，还需要哪些额外信息？`
     }
   ]
-  return await callModelScopeAPI(prompt)
+  return await callModelScopeAPI(prompt, 0.7, 400)
 }
 
 const translateToSolution = async (content) => {
@@ -981,7 +982,7 @@ const translateToSolution = async (content) => {
       content: `用户原始输入："${content}"\n\n请将其转化为清晰、专业的需求描述，包含具体的功能要求和期望结果。`
     }
   ]
-  return await callModelScopeAPI(prompt)
+  return await callModelScopeAPI(prompt, 0.7, 400)
 }
 
 const optimizeForUser = async (content) => {
@@ -995,7 +996,7 @@ const optimizeForUser = async (content) => {
       content: `技术方案："${content}"\n\n请将其转化为用户友好的语言，包含清晰的步骤和预期结果。`
     }
   ]
-  return await callModelScopeAPI(prompt)
+  return await callModelScopeAPI(prompt, 0.7, 600)
 }
 
 // 智能需求分析和信息缺失检测 - 精准版本
@@ -1105,7 +1106,7 @@ ${prompt.instruction}
       }
     ]
 
-    const result = await callModelScopeAPI(comprehensivePrompt, 0.1)
+    const result = await callModelScopeAPI(comprehensivePrompt, 0.1, 800)
     const sanitizedResult = sanitizeOutput(result)
     
     // 解析结果
@@ -1191,7 +1192,7 @@ ${content.negotiationRequest}
     ]
 
     console.log('发送协商请求到LLM...')
-    const response = await callModelScopeAPI(messages, 0.7)
+    const response = await callModelScopeAPI(messages, 0.7, 600)
     console.log('LLM协商响应:', truncateForLog(response))
 
     const sanitized = sanitizeFollowUpOutput(response)
@@ -1302,7 +1303,7 @@ ${chatContext}
       }
     ]
     
-    let resultRaw = await callModelScopeAPI(comprehensivePrompt, 0.3)
+    let resultRaw = await callModelScopeAPI(comprehensivePrompt, 0.3, 120)
     let result = sanitizeFollowUpOutput(resultRaw)
     result = stripLeadingPleasantries(result)
 
@@ -1312,7 +1313,7 @@ ${chatContext}
         { role: 'system', content: `${prompt.systemRole}\n\n${prompt.context}\n\n${prompt.example}\n\n重要要求：\n1) 仅输出一个自然问句，禁止寒暄、问候与客套；\n2) 长度30-80字；\n3) 必须包含所有选中的信息点；\n4) 必须完整成句并以问号结尾。` },
         { role: 'user', content: `原始需求："${originalContent}"\n\n选中的信息点：\n${selectedItems}\n\n请直接给出融合所有信息点的追问，禁止寒暄与铺垫。${chatContext}` }
       ]
-      resultRaw = await callModelScopeAPI(strictPrompt, 0.1)
+      resultRaw = await callModelScopeAPI(strictPrompt, 0.1, 120)
       result = stripLeadingPleasantries(sanitizeFollowUpOutput(resultRaw))
     }
 
@@ -1366,7 +1367,7 @@ ${content.negotiationRequest}
     ]
 
     console.log('发送协商追问请求到LLM...')
-    const response = await callModelScopeAPI(messages, 0.7)
+    const response = await callModelScopeAPI(messages, 0.7, 600)
     console.log('LLM协商追问响应:', truncateForLog(response))
 
     const sanitized = sanitizeFollowUpOutput(response)

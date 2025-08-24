@@ -3,50 +3,51 @@
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
 
-/* 自定义CSS变量 - 玻璃形态设计 */
+/* 自定义CSS变量 - 深色雅黑玻璃形态设计 */
 :root {
-  /* 主色调 - 雅灰色系 */
-  --primary-50: #fafaf9;
-  --primary-100: #f5f5f4;
-  --primary-200: #e7e5e4;
-  --primary-300: #d6d3d1;
-  --primary-400: #a8a29e;
-  --primary-500: #78716c;
-  --primary-600: #57534e;
-  --primary-700: #44403c;
-  --primary-800: #292524;
-  --primary-900: #1c1917;
+  /* 主色调 - 深色雅黑色系 */
+  --primary-50: #0f0f23;
+  --primary-100: #16213e;
+  --primary-200: #1e293b;
+  --primary-300: #334155;
+  --primary-400: #475569;
+  --primary-500: #64748b;
+  --primary-600: #94a3b8;
+  --primary-700: #cbd5e1;
+  --primary-800: #e2e8f0;
+  --primary-900: #f1f5f9;
   
-  /* 辅助色彩 - 温暖搭配 */
-  --accent-warm: #d97706;
-  --accent-sage: #84cc16;
-  --accent-rose: #f43f5e;
-  --accent-amber: #f59e0b;
+  /* 幻彩辅助色 - 蓝橙紫三色系 */
+  --accent-blue: #3b82f6;
+  --accent-orange: #f97316;
+  --accent-purple: #8b5cf6;
+  --accent-cyan: #06b6d4;
+  --accent-pink: #ec4899;
   
   /* 状态颜色 */
-  --success-50: #ecfdf5;
+  --success-50: #064e3b;
   --success-500: #10b981;
   --success-600: #059669;
   
-  --warning-50: #fffbeb;
+  --warning-50: #451a03;
   --warning-500: #f59e0b;
   --warning-600: #d97706;
   
-  --error-50: #fef2f2;
+  --error-50: #450a0a;
   --error-500: #ef4444;
   --error-600: #dc2626;
   
-  /* 玻璃形态阴影系统 - 雅灰调 */
-  --glass-shadow-light: 0 8px 32px 0 rgba(120, 113, 108, 0.15);
-  --glass-shadow-medium: 0 8px 32px 0 rgba(120, 113, 108, 0.25);
-  --glass-shadow-strong: 0 8px 32px 0 rgba(120, 113, 108, 0.35);
-  --glass-border: rgba(168, 162, 158, 0.2);
-  --glass-backdrop: rgba(245, 245, 244, 0.8);
+  /* 深色玻璃形态阴影系统 */
+  --glass-shadow-light: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+  --glass-shadow-medium: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+  --glass-shadow-strong: 0 8px 32px 0 rgba(0, 0, 0, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-backdrop: rgba(15, 15, 35, 0.8);
   
-  /* 渐变背景 - 雅灰色调 */
-  --bg-gradient-primary: linear-gradient(135deg, #78716c 0%, #57534e 100%);
-  --bg-gradient-secondary: linear-gradient(135deg, #f5f5f4 0%, #e7e5e4 100%);
-  --bg-gradient-accent: linear-gradient(135deg, #d6d3d1 0%, #a8a29e 100%);
+  /* 幻彩渐变背景 - 蓝橙紫色调 */
+  --bg-gradient-primary: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #f97316 100%);
+  --bg-gradient-secondary: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  --bg-gradient-accent: linear-gradient(135deg, #06b6d4 0%, #ec4899 100%);
 }
 
 /* 深色模式变量 */
@@ -80,7 +81,8 @@ html {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+  font-family: 'Microsoft YaHei', '微软雅黑', 'PingFang SC', 'Hiragino Sans GB',
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -126,29 +128,25 @@ body {
   background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-600) 100%);
 }
 
-/* Glassmorphism 玻璃形态效果 - 透明雅灰调 */
+/* Glassmorphism 玻璃形态效果 - 深色雅黑调 */
 .glass-effect {
-  background: linear-gradient(135deg, 
-    rgba(255, 255, 255, 0.15) 0%, 
-    rgba(245, 245, 244, 0.08) 100%);
-  backdrop-filter: blur(25px) saturate(1.8);
-  -webkit-backdrop-filter: blur(25px) saturate(1.8);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(31, 41, 55, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 20px;
   box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .glass-effect:hover {
   box-shadow: 
-    0 12px 40px rgba(0, 0, 0, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    0 12px 40px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
   transform: translateY(-2px);
-  background: linear-gradient(135deg, 
-    rgba(255, 255, 255, 0.2) 0%, 
-    rgba(245, 245, 244, 0.12) 100%);
+  background: rgba(31, 41, 55, 0.9);
 }
 
 .dark .glass-effect {
@@ -305,59 +303,58 @@ body {
   font-weight: 600;
 }
 
-/* 按钮样式 - 无边框柔和玻璃形态 */
+/* 按钮样式 - 深色雅黑玻璃形态 */
 .btn-primary {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.95) 0%, rgba(139, 92, 246, 0.95) 100%);
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.9) 0%, rgba(147, 51, 234, 0.9) 100%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   color: white;
-  font-weight: 600;
-  font-size: 0.9rem;
-  padding: 0.8rem 1.6rem;
-  border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 
-    0 8px 32px rgba(99, 102, 241, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
-}
-
-.btn-primary:hover {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.95) 0%, rgba(139, 92, 246, 0.95) 100%);
-  box-shadow: 
-    0 12px 40px rgba(99, 102, 241, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.25);
-  transform: translateY(-2px);
-}
-
-.btn-secondary {
-  background: linear-gradient(135deg, 
-    rgba(255, 255, 255, 0.18) 0%, 
-    rgba(255, 255, 255, 0.08) 100%);
-  backdrop-filter: blur(25px) saturate(1.5);
-  -webkit-backdrop-filter: blur(25px) saturate(1.5);
-  color: #0f172a;
   font-weight: 600;
   font-size: 0.9rem;
   padding: 0.8rem 1.6rem;
   border-radius: 20px;
   border: none;
   box-shadow: 
-    0 6px 24px rgba(99, 102, 241, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    0 4px 16px rgba(59, 130, 246, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  text-shadow: 0 2px 4px rgba(255, 255, 255, 0.9);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  letter-spacing: 0.025em;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 1) 0%, rgba(147, 51, 234, 1) 100%);
+  box-shadow: 
+    0 6px 20px rgba(59, 130, 246, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px) scale(1.05);
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: white;
+  font-weight: 500;
+  font-size: 0.9rem;
+  padding: 0.7rem 1.4rem;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 
+    0 4px 16px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  letter-spacing: 0.025em;
 }
 
 .btn-secondary:hover {
-  background: linear-gradient(135deg, 
-    rgba(255, 255, 255, 0.25) 0%, 
-    rgba(255, 255, 255, 0.12) 100%);
+  background: rgba(255, 255, 255, 0.2);
   box-shadow: 
-    0 8px 30px rgba(99, 102, 241, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.4);
-  transform: translateY(-2px);
+    0 6px 20px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px) scale(1.02);
+  border: 1px solid rgba(255, 255, 255, 0.4);
 }
 
 .btn-ghost {
@@ -446,6 +443,7 @@ body {
   -moz-user-select: text !important;
   -ms-user-select: text !important;
   caret-color: #111827;
+  animation: caretBlink 1s step-start infinite;
 }
 
 /* 明确提升输入框文字的选中可见度（避免误以为无法选中） */
@@ -496,6 +494,7 @@ body {
     0 4px 16px rgba(0, 0, 0, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  caret-color: #f9fafb;
 }
 
 .dark .input-field::placeholder {
@@ -557,9 +556,15 @@ body {
 }
 
 .panel-header {
-  background: transparent;
-  padding: 1.5rem 1.5rem 1rem 1.5rem;
-  border-bottom: none;
+  background: rgba(249, 250, 251, 0.15);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 1.1rem;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  letter-spacing: 0.025em;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -567,9 +572,9 @@ body {
 
 .panel-header h3,
 .panel-header h2 {
-  color: #374151;
+  color: #ffffff;
   font-weight: 700;
-  text-shadow: none;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
   font-size: 1.1rem;
 }
 
@@ -741,6 +746,12 @@ body {
   50% {
     box-shadow: 0 0 40px rgba(99, 102, 241, 0.6);
   }
+}
+
+/* 增强输入插入符闪烁可见度 */
+@keyframes caretBlink {
+  0%, 50% { opacity: 1; }
+  50.01%, 100% { opacity: 0.65; }
 }
 
 /* 特殊的悬停效果 */

@@ -107,7 +107,7 @@ const ProblemPanel = ({ scenario, messages, onSendMessage, isProcessing }) => {
                       <div className="message-content">
                         <p className="whitespace-pre-wrap select-text">{message.text}</p>
                       </div>
-                      <div className="text-xs text-blue-100 mt-1 opacity-75">
+                      <div className="text-xs text-gray-300 mt-1 opacity-90" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                         {new Date(message.timestamp).toLocaleTimeString()}
                       </div>
                     </div>
@@ -126,7 +126,7 @@ const ProblemPanel = ({ scenario, messages, onSendMessage, isProcessing }) => {
                       <div className="message-content">
                 <p className="whitespace-pre-wrap select-text">{message.text}</p>
               </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      <div className="text-xs text-gray-300 mt-1 opacity-90" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                         {new Date(message.timestamp).toLocaleTimeString()}
                       </div>
                     </div>

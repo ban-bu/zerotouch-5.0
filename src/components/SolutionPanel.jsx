@@ -211,7 +211,7 @@ const SolutionPanel = ({
                   <div className="flex items-start space-x-2">
                     <Bot className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
                     <div className="flex-1">
-                      <div className="text-xs font-medium text-blue-700 mb-1">
+                      <div className="text-xs font-semibold text-white mb-1" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                         来自LLM的智能分析需求
                       </div>
                       {/* 需求理解 */}
@@ -244,7 +244,7 @@ const SolutionPanel = ({
                           </div>
                         </div>
                       )}
-                      <div className="text-xs text-blue-600 mt-1 opacity-75">
+                      <div className="text-xs text-gray-300 mt-1 opacity-90" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                         {new Date(message.timestamp).toLocaleTimeString()}
                       </div>
                     </div>
@@ -267,7 +267,7 @@ const SolutionPanel = ({
                       <div className="message-content">
                         <p className="whitespace-pre-wrap text-gray-800 dark:text-gray-200 select-text">{message.text}</p>
                       </div>
-                      <div className="text-xs text-green-700 mt-1 opacity-75">
+                      <div className="text-xs text-gray-300 mt-1 opacity-90" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                         {new Date(message.timestamp).toLocaleTimeString()}
                       </div>
                     </div>
@@ -287,7 +287,7 @@ const SolutionPanel = ({
                       <div className="message-content">
                         <p className="whitespace-pre-wrap text-gray-800 dark:text-gray-200 select-text">{message.text}</p>
                       </div>
-                      <div className="text-xs text-gray-500 mt-1">
+                      <div className="text-xs text-gray-300 mt-1 opacity-90" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                         {new Date(message.timestamp).toLocaleTimeString()}
                       </div>
                     </div>
@@ -307,7 +307,7 @@ const SolutionPanel = ({
                   <div className="flex items-start space-x-2">
                     <Lightbulb className="w-4 h-4 text-purple-600 mt-0.5 flex-shrink-0" />
                     <div className="flex-1">
-                      <div className="text-xs font-medium text-purple-700 mb-1">
+                      <div className="text-xs font-semibold text-white mb-1" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                         AI生成的建议
                       </div>
                       {/* [MODIFIED] 单条消息滚动容器 - 添加点击事件 */}
@@ -368,12 +368,12 @@ const SolutionPanel = ({
                    <div className="flex space-x-2">
                      <button
                        onClick={() => onAcceptSuggestion && onAcceptSuggestion(message.id)}
-                       className="flex-1 px-3 py-2 text-green-700 rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm"
+                       className="flex-1 px-3 py-2 text-white rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm"
                        style={{
-                         background: 'linear-gradient(135deg, rgba(16,185,129,0.12) 0%, rgba(52,211,153,0.1) 100%)',
+                         background: 'rgba(255, 255, 255, 0.15)',
                          backdropFilter: 'blur(8px) saturate(1.2)',
                          WebkitBackdropFilter: 'blur(8px) saturate(1.2)',
-                         border: '1px solid rgba(16,185,129,0.25)'
+                         border: '1px solid rgba(255, 255, 255, 0.25)'
                        }}
                        title="接受这个建议"
                      >
@@ -382,12 +382,12 @@ const SolutionPanel = ({
                      </button>
                      <button
                        onClick={() => onNegotiateSuggestion && onNegotiateSuggestion(message.id)}
-                       className="flex-1 px-3 py-2 text-blue-700 rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm"
+                       className="flex-1 px-3 py-2 text-white rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm"
                        style={{
-                         background: 'linear-gradient(135deg, rgba(59,130,246,0.12) 0%, rgba(147,197,253,0.1) 100%)',
+                         background: 'rgba(255, 255, 255, 0.15)',
                          backdropFilter: 'blur(8px) saturate(1.2)',
                          WebkitBackdropFilter: 'blur(8px) saturate(1.2)',
-                         border: '1px solid rgba(59,130,246,0.25)'
+                         border: '1px solid rgba(255, 255, 255, 0.25)'
                        }}
                        title="与AI协商修改建议"
                      >
@@ -396,12 +396,12 @@ const SolutionPanel = ({
                      </button>
                      <button
                        onClick={() => onRejectSuggestion && onRejectSuggestion(message.id)}
-                       className="flex-1 px-3 py-2 text-red-700 rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm"
+                       className="flex-1 px-3 py-2 text-white rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm"
                        style={{
-                         background: 'linear-gradient(135deg, rgba(248,113,113,0.12) 0%, rgba(252,165,165,0.1) 100%)',
+                         background: 'rgba(255, 255, 255, 0.15)',
                          backdropFilter: 'blur(8px) saturate(1.2)',
                          WebkitBackdropFilter: 'blur(8px) saturate(1.2)',
-                         border: '1px solid rgba(248,113,113,0.25)'
+                         border: '1px solid rgba(255, 255, 255, 0.25)'
                        }}
                        title="要求重新生成"
                      >
@@ -412,7 +412,7 @@ const SolutionPanel = ({
                  )}
               </div>
                       
-                      <div className="text-xs text-purple-600 mt-1 opacity-75">
+                      <div className="text-xs text-gray-300 mt-1 opacity-90" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                         {new Date(message.timestamp).toLocaleTimeString()}
                       </div>
                     </div>
@@ -432,7 +432,7 @@ const SolutionPanel = ({
                   <div className="flex items-start space-x-2">
                     <MessageSquare className="w-4 h-4 text-orange-600 mt-0.5 flex-shrink-0" />
                     <div className="flex-1">
-                      <div className="text-xs font-medium text-orange-700 mb-1">
+                      <div className="text-xs font-semibold text-white mb-1" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                         AI生成的追问
                       </div>
                       {/* [MODIFIED] 单条消息滚动容器 - 添加点击事件 */}
@@ -537,7 +537,7 @@ const SolutionPanel = ({
                  )}
               </div>
                       
-                      <div className="text-xs text-orange-600 mt-1 opacity-75">
+                      <div className="text-xs text-gray-300 mt-1 opacity-90" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                         {new Date(message.timestamp).toLocaleTimeString()}
                       </div>
                     </div>
@@ -763,10 +763,10 @@ const SolutionPanel = ({
                 disabled={iterationProcessing || !messages || messages.length === 0}
                 className="flex-1 px-3 py-2 text-white rounded-2xl transition-all hover:scale-105 disabled:cursor-not-allowed flex items-center justify-center space-x-2 shadow-sm"
                 style={{
-                  background: 'linear-gradient(135deg, rgba(147, 51, 234, 0.35) 0%, rgba(99, 102, 241, 0.32) 100%)',
+                  background: 'rgba(255, 255, 255, 0.2)',
                   backdropFilter: 'blur(14px) saturate(1.2)',
                   WebkitBackdropFilter: 'blur(14px) saturate(1.2)',
-                  border: '1px solid rgba(255, 255, 255, 0.18)'
+                  border: '1px solid rgba(255, 255, 255, 0.3)'
                 }}
                 title="AI生成建议"
               >
@@ -789,10 +789,10 @@ const SolutionPanel = ({
                 disabled={iterationProcessing || !messages || messages.length === 0}
                 className="flex-1 px-3 py-2 text-white rounded-2xl transition-all hover:scale-105 disabled:cursor-not-allowed flex items-center justify-center space-x-2 shadow-sm"
                 style={{
-                  background: 'linear-gradient(135deg, rgba(251, 146, 60, 0.35) 0%, rgba(245, 158, 11, 0.32) 100%)',
+                  background: 'rgba(255, 255, 255, 0.2)',
                   backdropFilter: 'blur(14px) saturate(1.2)',
                   WebkitBackdropFilter: 'blur(14px) saturate(1.2)',
-                  border: '1px solid rgba(255, 255, 255, 0.18)'
+                  border: '1px solid rgba(255, 255, 255, 0.3)'
                 }}
                 title="AI生成追问"
               >

@@ -234,6 +234,11 @@
     font-size: 15px;
     line-height: 1.5;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    caret-color: #ffffff;
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    -moz-user-select: text !important;
+    -ms-user-select: text !important;
   }
   
   .input-field:focus {
@@ -252,6 +257,7 @@
     background: linear-gradient(135deg, rgba(59, 130, 246, 0.9) 0%, rgba(147, 51, 234, 0.9) 100%);
     backdrop-filter: blur(8px);
     @apply hover:scale-105 text-white px-6 py-3 rounded-2xl font-semibold transition-all duration-200;
+    border: none;
     box-shadow: 
       0 4px 16px rgba(59, 130, 246, 0.4),
       inset 0 1px 0 rgba(255, 255, 255, 0.2);
@@ -277,5 +283,48 @@
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
     font-size: 15px;
     letter-spacing: 0.025em;
+  }
+
+  .btn-glass {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.08) 100%);
+    color: #ffffff;
+    padding: 0.5rem 0.75rem;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(14px) saturate(1.2);
+    -webkit-backdrop-filter: blur(14px) saturate(1.2);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    transition: all 0.2s ease;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  }
+
+  .btn-glass:hover {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.12) 100%);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  }
+
+  /* 顶部工具栏 - 灰白透明 */
+  .app-toolbar {
+    position: relative;
+    z-index: 100;
+    background: linear-gradient(135deg, 
+      rgba(255, 255, 255, 0.18) 0%, 
+      rgba(255, 255, 255, 0.08) 100%);
+    backdrop-filter: blur(18px) saturate(1.2);
+    -webkit-backdrop-filter: blur(18px) saturate(1.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+    box-shadow: 
+      0 8px 32px rgba(0, 0, 0, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+
+  .dark .app-toolbar {
+    background: linear-gradient(135deg, 
+      rgba(31, 41, 55, 0.7) 0%, 
+      rgba(17, 24, 39, 0.5) 100%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 
+      0 10px 40px rgba(0, 0, 0, 0.35),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
   }
 }
