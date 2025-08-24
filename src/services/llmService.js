@@ -7,7 +7,7 @@ const MODELSCOPE_CONFIG = {
   // [MODIFIED]
   baseURL: 'https://api-inference.modelscope.cn/v1/',
   model: 'deepseek-ai/DeepSeek-V3',
-  apiKey: 'ms-203a16ca-de0b-4ea5-9e5f-91761923c6b5'
+  apiKey: 'ms-20166c50-1172-44eb-8431-5934a9868a1b'
 }
 
 // 日志辅助函数（避免输出过长内容和敏感信息）
