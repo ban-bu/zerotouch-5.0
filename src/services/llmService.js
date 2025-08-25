@@ -1411,11 +1411,128 @@ export const processWithLLM = async ({ type, content, image, context, scenario, 
       return await negotiateSuggestion(content, scenario, chatHistory)
     } else if (type === 'negotiate_followup') {
       return await negotiateFollowUp(content, scenario, chatHistory)
+    } else if (type === 'generate_department_contact') {
+      return await generateDepartmentContact(content, scenario, chatHistory)
     }
     
     throw new Error('未知的处理类型')
   } catch (error) {
     console.error('LLM处理错误:', error)
+    throw error
+  }
+}
+
+// 生成部门联络指令
+const generateDepartmentContact = async (suggestion, scenario, chatHistory = []) => {
+  try {
+    console.log('\n=== 开始生成部门联络指令 ===')
+    console.log('建议内容:', suggestion)
+    console.log('场景:', scenario)
+
+    const chatContext = buildChatContextWithLogging(chatHistory, '联络指令上下文', 4)
+
+    const scenarioPrompts = {
+      retail: {
+        systemRole: '你是一个专业的零售客服主管，负责协调各部门处理客户问题。',
+        context: '根据客服建议，生成标准的客户回复和内部联络指令。',
+        departments: ['订单部', '物流部', '售后部', '技术部', '财务部']
+      },
+      finance: {
+        systemRole: '你是一个专业的金融客服主管，负责协调各部门处理客户业务。',
+        context: '根据客服建议，生成标准的客户回复和内部联络指令。',
+        departments: ['业务部', '风控部', '技术部', '合规部', '运营部']
+      },
+      logistics: {
+        systemRole: '你是一个专业的物流客服主管，负责协调各部门处理客户问题。',
+        context: '根据客服建议，生成标准的客户回复和内部联络指令。',
+        departments: ['运输部', '仓储部', '客服部', '技术部', '结算部']
+      }
+    }
+
+    const prompt = scenarioPrompts[scenario] || scenarioPrompts.retail
+
+    const systemPrompt = `${prompt.systemRole}
+
+${prompt.context}
+
+你需要基于客服建议，生成两种标准输出：
+
+1. 【客户回复】- 给客户的专业回复
+要求：
+- 语气友好、专业、有同理心
+- 明确说明解决方案和时效
+- 体现服务态度和责任感
+- 50-100字，简洁明了
+
+2. 【联络指令】- 给内部的行动指令
+要求：
+- 明确责任部门：${prompt.departments.join('、')}
+- 具体行动步骤和时限
+- 跟进要点和汇报要求
+- 30-80字，指令明确
+
+输出格式：
+【客户回复】
+[这里是给客户的回复内容]
+
+【联络指令】
+[这里是给内部的联络指令]
+
+【防止幻觉的关键原则】
+1. 严格基于提供的建议内容，不添加对话中未提及的信息
+2. 确保所有信息都有明确的依据来源
+3. 如果某些细节不明确，在回复中体现出会进一步确认
+4. 不编造具体的订单号、金额、时间等数据`
+
+    const userPrompt = `客服建议内容：
+${suggestion}
+
+请基于以上建议，生成标准的客户回复和内部联络指令。${chatContext}`
+
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt }
+    ]
+
+    console.log('发送联络指令生成请求到LLM...')
+    const response = await callModelScopeAPI(messages, 0.7, 2048)
+    console.log('LLM联络指令响应:', truncateForLog(response))
+
+    // 解析输出
+    const customerReplyMatch = response.match(/【客户回复】\s*\n([\s\S]*?)(?=\n【联络指令】|$)/)
+    const contactInstructionMatch = response.match(/【联络指令】\s*\n([\s\S]*?)$/)
+
+    const customerReply = customerReplyMatch ? customerReplyMatch[1].trim() : '抱歉，系统生成客户回复时出现问题，请手动处理。'
+    const contactInstruction = contactInstructionMatch ? contactInstructionMatch[1].trim() : '请相关部门跟进处理客户问题。'
+
+    // 构建步骤显示
+    const steps = [
+      {
+        name: '客户回复生成',
+        content: customerReply
+      },
+      {
+        name: '联络指令生成', 
+        content: contactInstruction
+      }
+    ]
+
+    console.groupCollapsed('[LLM] Parsed -> generate_department_contact')
+    console.log('customerReply:', truncateForLog(customerReply))
+    console.log('contactInstruction:', truncateForLog(contactInstruction))
+    console.groupEnd()
+
+    return {
+      steps,
+      customerReply,
+      contactInstruction,
+      structuredOutput: {
+        customerReply,
+        contactInstruction
+      }
+    }
+  } catch (error) {
+    console.error('生成部门联络指令时出错:', error)
     throw error
   }
 }
@@ -1430,5 +1547,6 @@ export {
   optimizeForUser,
   generateEnterpriseSuggestion,
   generateEnterpriseFollowUp,
-  negotiateSuggestion
+  negotiateSuggestion,
+  generateDepartmentContact
 }

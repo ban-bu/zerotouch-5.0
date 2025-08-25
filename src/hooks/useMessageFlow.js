@@ -155,7 +155,80 @@ export const useMessageFlow = (currentScenario) => {
       setCurrentNeedsAnalysis(null)
     }
 
-    // 开始LLM处理
+    // 检查是否是协商后的追问或客户回复，如果是则直接发送，不需要AI转译
+    const inputText = messageData.text.trim()
+    
+    // 检查协商后的追问
+    const negotiatedFollowUp = messages.solution.find(msg => 
+      (msg.type === 'followup' || msg.type === 'intelligent_followup') && 
+      msg.negotiated && 
+      msg.text.trim() === inputText
+    )
+
+    // 检查部门联络指令中的客户回复
+    const customerReplyMatch = messages.solution.find(msg => 
+      msg.type === 'department_contact' && 
+      msg.customerReply && 
+      msg.customerReply.trim() === inputText
+    )
+
+    if (negotiatedFollowUp) {
+      console.log('🎯 检测到协商后的追问，直接发送给用户端，跳过AI转译处理')
+      
+      // 直接发送到问题端，不经过AI转译
+      const directMessage = {
+        type: 'ai_response',
+        text: inputText,
+        timestamp: new Date().toISOString(),
+        isNegotiated: true // 标记为协商后的消息
+      }
+      addMessage('problem', directMessage)
+
+      // 添加处理过程到中介面板（显示跳过转译）
+      const skipMessage = {
+        type: 'processing',
+        title: '协商后追问直达用户端',
+        steps: [{
+          name: '处理说明',
+          content: '协商完成的追问直接发送给用户端，无需AI二次转译'
+        }],
+        output: inputText,
+        timestamp: new Date().toISOString()
+      }
+      addMessage('llm', skipMessage)
+      
+      return // 直接返回，不进行后续的AI处理
+    }
+
+    if (customerReplyMatch) {
+      console.log('🎯 检测到客户回复内容，直接发送给用户端，跳过AI转译处理')
+      
+      // 直接发送到问题端，不经过AI转译
+      const directMessage = {
+        type: 'ai_response',
+        text: inputText,
+        timestamp: new Date().toISOString(),
+        isCustomerReply: true // 标记为客户回复消息
+      }
+      addMessage('problem', directMessage)
+
+      // 添加处理过程到中介面板（显示跳过转译）
+      const skipMessage = {
+        type: 'processing',
+        title: '客户回复直达用户端',
+        steps: [{
+          name: '处理说明',
+          content: '生成的客户回复直接发送给用户端，无需AI二次转译'
+        }],
+        output: inputText,
+        timestamp: new Date().toISOString()
+      }
+      addMessage('llm', skipMessage)
+      
+      return // 直接返回，不进行后续的AI处理
+    }
+
+    // 开始LLM处理（非协商后的追问）
     setLlmProcessing(true)
 
     try {
@@ -215,7 +288,7 @@ export const useMessageFlow = (currentScenario) => {
     } finally {
       setLlmProcessing(false)
     }
-  }, [addMessage, currentScenario, messages.problem, messages.solution])
+  }, [addMessage, currentScenario, messages.problem, messages.solution, showMissingInfoPanel])
 
   // 新增：生成企业端建议
   const generateSuggestion = useCallback(async () => {
@@ -941,6 +1014,87 @@ export const useMessageFlow = (currentScenario) => {
     }
   }, [messages.problem, messages.solution, currentScenario, addMessage, cancelIntelligentFollowUpNegotiation])
 
+  // 生成部门联络指令
+  const generateDepartmentContact = useCallback(async (suggestion) => {
+    if (iterationProcessing) return
+
+    setIterationProcessing(true)
+
+    try {
+      // 构建完整的聊天历史
+      const chatHistory = [
+        // 问题端的所有消息：用户输入 + AI优化后的回复
+        ...messages.problem
+          .filter(msg => msg.type === 'user' || msg.type === 'ai_response')
+          .map(msg => ({ ...msg, panel: 'problem' })),
+        // 方案端的所有消息：AI转译的请求 + 企业用户输入 + AI回复
+        ...messages.solution
+          .filter(msg => msg.type === 'llm_request' || msg.type === 'user' || msg.type === 'ai_response')
+          .map(msg => ({ ...msg, panel: 'solution' }))
+      ].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+
+      // 生成部门联络指令
+      const llmResult = await processWithLLM({
+        type: 'generate_department_contact',
+        content: suggestion,
+        scenario: currentScenario,
+        chatHistory: chatHistory
+      })
+
+      // 添加LLM处理过程到中介面板
+      const llmMessage = {
+        type: 'processing',
+        title: '生成部门联络指令',
+        steps: llmResult.steps,
+        output: `客户回复：${llmResult.customerReply}\n\n联络指令：${llmResult.contactInstruction}`,
+        timestamp: new Date().toISOString()
+      }
+      addMessage('llm', llmMessage)
+
+      // 将联络指令添加到方案端（作为特殊消息类型）
+      const contactMessage = {
+        type: 'department_contact',
+        customerReply: llmResult.customerReply,
+        contactInstruction: llmResult.contactInstruction,
+        timestamp: new Date().toISOString(),
+        id: `contact_${Date.now()}`,
+        instructionSent: false, // 初始化为未发送状态
+        sentTimestamp: null
+      }
+      addMessage('solution', contactMessage)
+
+    } catch (error) {
+      console.error('生成部门联络指令时出错:', error)
+      // 添加错误消息
+      const errorMessage = {
+        type: 'processing',
+        title: '生成部门联络指令出错',
+        steps: [{
+          name: '错误信息',
+          content: '抱歉，生成部门联络指令时出现了错误，请稍后重试。'
+        }],
+        timestamp: new Date().toISOString()
+      }
+      addMessage('llm', errorMessage)
+    } finally {
+      setIterationProcessing(false)
+    }
+  }, [addMessage, currentScenario, messages.problem, messages.solution, iterationProcessing])
+
+  // 标记联络指令为已发送
+  const markContactInstructionSent = useCallback((contactId) => {
+    setMessages(prev => ({
+      ...prev,
+      solution: prev.solution.map(msg => 
+        msg.id === contactId && msg.type === 'department_contact' ? {
+          ...msg,
+          instructionSent: true,
+          sentTimestamp: new Date().toISOString()
+        } : msg
+      )
+    }))
+  }, [])
+
   // 新增：清空所有状态
   const clearAllStates = useCallback(() => {
     setMessages({
@@ -991,6 +1145,8 @@ export const useMessageFlow = (currentScenario) => {
     sendSolutionMessage,
     generateSuggestion,
     generateFollowUp,
+    generateDepartmentContact,
+    markContactInstructionSent,
     confirmSendResponse,
     cancelIteration,
     clearMessages: clearAllStates

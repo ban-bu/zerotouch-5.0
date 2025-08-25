@@ -98,6 +98,8 @@ function App() {
     sendSolutionMessage,
     generateSuggestion,
     generateFollowUp,
+    generateDepartmentContact,
+    markContactInstructionSent,
     confirmSendResponse,
     cancelIteration,
     clearMessages
@@ -335,6 +337,8 @@ function App() {
                   pendingResponse={pendingResponse}
                   onGenerateSuggestion={generateSuggestion}
                   onGenerateFollowUp={generateFollowUp}
+                  onGenerateDepartmentContact={generateDepartmentContact}
+                  onMarkContactInstructionSent={markContactInstructionSent}
                   onConfirmSend={confirmSendResponse}
                   onCancelIteration={cancelIteration}
                   inputRef={solutionInputRef}

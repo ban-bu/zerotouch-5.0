@@ -12,6 +12,8 @@ const SolutionPanel = ({
   pendingResponse,
   onGenerateSuggestion,
   onGenerateFollowUp,
+  onGenerateDepartmentContact,
+  onMarkContactInstructionSent,
   onConfirmSend,
   onCancelIteration,
   // 新增：勾选框相关props
@@ -40,6 +42,11 @@ const SolutionPanel = ({
   onSendIntelligentFollowUpNegotiationRequest
 }) => {
   const [input, setInput] = useState('')
+
+  // 调试输入框状态变化
+  useEffect(() => {
+    console.log('📝 输入框内容更新:', input)
+  }, [input])
 
   // 协商面板组件
   const NegotiationPanel = ({ messageId, onSendNegotiation, onCancel }) => {
@@ -352,13 +359,35 @@ const SolutionPanel = ({
                       {/* 建议反馈按钮 */}
               <div className="mt-3">
                 {message.feedbackGiven ? (
-                  <div className={`text-sm px-3 py-1 rounded ${
-                    message.accepted 
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
-                      : 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
-                  }`}>
-                    {message.accepted ? '✓ 已接受建议' : '↻ 已拒绝，重新生成中...'}
-                  </div>
+                  message.accepted ? (
+                    <div className="space-y-2">
+                      <div className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-sm px-3 py-1 rounded">
+                        ✓ 已接受建议
+                      </div>
+                      {/* 接受建议后的部门联络指令按钮 */}
+                      <button
+                        onClick={() => onGenerateDepartmentContact && onGenerateDepartmentContact(message.text)}
+                        className="w-full px-4 py-3 text-white rounded-lg transition-all duration-200 flex items-center justify-center space-x-2 text-sm font-medium hover:scale-105"
+                        style={{
+                          background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(16, 185, 129, 0.15) 100%)',
+                          backdropFilter: 'blur(10px) saturate(1.3)',
+                          WebkitBackdropFilter: 'blur(10px) saturate(1.3)',
+                          border: '1px solid rgba(34, 197, 94, 0.3)',
+                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+                        }}
+                        title="生成客户回复和部门联络指令"
+                        disabled={iterationProcessing}
+                      >
+                        <Users className="w-4 h-4" />
+                        <span>生成客户回复和部门联络指令</span>
+                        {iterationProcessing && <div className="w-4 h-4 border-2 border-green-400 border-t-transparent rounded-full animate-spin ml-1"></div>}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200 text-sm px-3 py-1 rounded">
+                      ↻ 已拒绝，重新生成中...
+                    </div>
+                  )
                 ) : message.negotiating ? (
                    <NegotiationPanel 
                      messageId={message.id}
@@ -385,48 +414,68 @@ const SolutionPanel = ({
                        </div>
                      </div>
                      {/* 继续提供协商选项 */}
-                     <div className="flex space-x-2">
+                     <div className="space-y-2">
+                       <div className="flex space-x-2">
+                         <button
+                           onClick={() => onAcceptSuggestion && onAcceptSuggestion(message.id)}
+                           className="flex-1 px-3 py-2 text-white rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm"
+                           style={{
+                             background: 'rgba(255, 255, 255, 0.15)',
+                             backdropFilter: 'blur(8px) saturate(1.2)',
+                             WebkitBackdropFilter: 'blur(8px) saturate(1.2)',
+                             border: '1px solid rgba(255, 255, 255, 0.25)'
+                           }}
+                           title="接受当前版本"
+                         >
+                           <Check className="w-4 h-4" />
+                           <span>接受建议</span>
+                         </button>
+                         <button
+                           onClick={() => onNegotiateSuggestion && onNegotiateSuggestion(message.id)}
+                           className="flex-1 px-3 py-2 text-white rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm"
+                           style={{
+                             background: 'rgba(255, 255, 255, 0.15)',
+                             backdropFilter: 'blur(8px) saturate(1.2)',
+                             WebkitBackdropFilter: 'blur(8px) saturate(1.2)',
+                             border: '1px solid rgba(255, 255, 255, 0.25)'
+                           }}
+                           title="继续协商修改"
+                         >
+                           <MessageCircle className="w-4 h-4" />
+                           <span>继续协商</span>
+                         </button>
+                         <button
+                           onClick={() => onRejectSuggestion && onRejectSuggestion(message.id)}
+                           className="flex-1 px-3 py-2 text-white rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm"
+                           style={{
+                             background: 'rgba(255, 255, 255, 0.15)',
+                             backdropFilter: 'blur(8px) saturate(1.2)',
+                             WebkitBackdropFilter: 'blur(8px) saturate(1.2)',
+                             border: '1px solid rgba(255, 255, 255, 0.25)'
+                           }}
+                           title="重新生成"
+                         >
+                           <XCircle className="w-4 h-4" />
+                           <span>重新生成</span>
+                         </button>
+                       </div>
+                       {/* 部门联系按钮 - 单独一行 */}
                        <button
-                         onClick={() => onAcceptSuggestion && onAcceptSuggestion(message.id)}
-                         className="flex-1 px-3 py-2 text-white rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm"
+                         onClick={() => onGenerateDepartmentContact && onGenerateDepartmentContact(message.text)}
+                         className="w-full px-4 py-3 text-white rounded-lg transition-all duration-200 flex items-center justify-center space-x-2 text-sm font-medium hover:scale-105"
                          style={{
-                           background: 'rgba(255, 255, 255, 0.15)',
-                           backdropFilter: 'blur(8px) saturate(1.2)',
-                           WebkitBackdropFilter: 'blur(8px) saturate(1.2)',
-                           border: '1px solid rgba(255, 255, 255, 0.25)'
+                           background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(16, 185, 129, 0.15) 100%)',
+                           backdropFilter: 'blur(10px) saturate(1.3)',
+                           WebkitBackdropFilter: 'blur(10px) saturate(1.3)',
+                           border: '1px solid rgba(34, 197, 94, 0.3)',
+                           boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
                          }}
-                         title="接受当前版本"
+                         title="生成客户回复和部门联络指令"
+                         disabled={iterationProcessing}
                        >
-                         <Check className="w-4 h-4" />
-                         <span>接受建议</span>
-                       </button>
-                       <button
-                         onClick={() => onNegotiateSuggestion && onNegotiateSuggestion(message.id)}
-                         className="flex-1 px-3 py-2 text-white rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm"
-                         style={{
-                           background: 'rgba(255, 255, 255, 0.15)',
-                           backdropFilter: 'blur(8px) saturate(1.2)',
-                           WebkitBackdropFilter: 'blur(8px) saturate(1.2)',
-                           border: '1px solid rgba(255, 255, 255, 0.25)'
-                         }}
-                         title="继续协商修改"
-                       >
-                         <MessageCircle className="w-4 h-4" />
-                         <span>继续协商</span>
-                       </button>
-                       <button
-                         onClick={() => onRejectSuggestion && onRejectSuggestion(message.id)}
-                         className="flex-1 px-3 py-2 text-white rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm"
-                         style={{
-                           background: 'rgba(255, 255, 255, 0.15)',
-                           backdropFilter: 'blur(8px) saturate(1.2)',
-                           WebkitBackdropFilter: 'blur(8px) saturate(1.2)',
-                           border: '1px solid rgba(255, 255, 255, 0.25)'
-                         }}
-                         title="重新生成"
-                       >
-                         <XCircle className="w-4 h-4" />
-                         <span>重新生成</span>
+                         <Users className="w-4 h-4" />
+                         <span>生成客户回复和部门联络指令</span>
+                         {iterationProcessing && <div className="w-4 h-4 border-2 border-green-400 border-t-transparent rounded-full animate-spin ml-1"></div>}
                        </button>
                      </div>
                    </div>
@@ -842,6 +891,146 @@ const SolutionPanel = ({
               </div>
                       
                       <div className="text-xs text-gray-300 mt-1 opacity-90" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
+                        {new Date(message.timestamp).toLocaleTimeString()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 新增：部门联络指令消息 */}
+              {message.type === 'department_contact' && (
+                <div className="message-bubble text-green-900 shadow-sm hover:shadow-md transition-all duration-200" style={{
+                  background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(16, 185, 129, 0.06) 100%)',
+                  backdropFilter: 'blur(14px) saturate(1.2)',
+                  WebkitBackdropFilter: 'blur(14px) saturate(1.2)',
+                  border: '1px solid rgba(34, 197, 94, 0.25)',
+                  borderRadius: '12px'
+                }}>
+                  <div className="flex items-start space-x-2">
+                    <Users className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <div className="text-xs font-semibold text-white mb-2" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
+                        部门联络指令已生成
+                      </div>
+                      
+                      {/* 客户回复显示 */}
+                      <div className="mb-3">
+                        <div className="text-xs font-medium text-green-800 dark:text-green-200 mb-1 flex items-center space-x-1">
+                          <MessageSquare className="w-3 h-3" />
+                          <span>给客户的回复</span>
+                        </div>
+                        <div 
+                          className="rounded p-3"
+                          style={{
+                            background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.06) 0%, rgba(16, 185, 129, 0.05) 100%)',
+                            border: '1px solid rgba(34, 197, 94, 0.2)',
+                            wordWrap: 'break-word',
+                            whiteSpace: 'pre-wrap'
+                          }}
+                        >
+                          <p className="whitespace-pre-wrap text-gray-800 dark:text-gray-200 select-text text-sm" style={{
+                            margin: 0,
+                            padding: 0,
+                            lineHeight: '1.5',
+                            wordBreak: 'break-word',
+                            overflowWrap: 'break-word'
+                          }}>{message.customerReply}</p>
+                        </div>
+                      </div>
+                      
+                      {/* 联络指令显示 */}
+                      <div className="mb-3">
+                        <div className="text-xs font-medium text-green-800 dark:text-green-200 mb-1 flex items-center space-x-1">
+                          <AlertCircle className="w-3 h-3" />
+                          <span>内部联络指令</span>
+                        </div>
+                        <div 
+                          className="rounded p-3"
+                          style={{
+                            background: 'linear-gradient(135deg, rgba(255, 193, 7, 0.08) 0%, rgba(255, 167, 38, 0.06) 100%)',
+                            border: '1px solid rgba(255, 193, 7, 0.3)',
+                            wordWrap: 'break-word',
+                            whiteSpace: 'pre-wrap'
+                          }}
+                        >
+                          <p className="whitespace-pre-wrap text-gray-800 dark:text-gray-200 select-text text-sm font-medium" style={{
+                            margin: 0,
+                            padding: 0,
+                            lineHeight: '1.5',
+                            wordBreak: 'break-word',
+                            overflowWrap: 'break-word'
+                          }}>{message.contactInstruction}</p>
+                        </div>
+                      </div>
+                      
+                      {/* 状态显示和操作按钮 */}
+                      {message.instructionSent ? (
+                        <div className="space-y-2">
+                          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-2">
+                            <div className="text-sm text-green-800 dark:text-green-200 flex items-center space-x-2">
+                              <CheckCircle className="w-4 h-4" />
+                              <span>✓ 联络指令已发送给相关部门</span>
+                            </div>
+                            <div className="text-xs text-green-600 dark:text-green-300 mt-1">
+                              发送时间: {new Date(message.sentTimestamp).toLocaleString()}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => {
+                              console.log('🔘 应用客户回复按钮被点击，内容:', message.customerReply)
+                              setInput(message.customerReply)
+                            }}
+                            className="w-full px-3 py-2 text-white rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm"
+                            style={{
+                              background: 'rgba(255, 255, 255, 0.15)',
+                              backdropFilter: 'blur(8px) saturate(1.2)',
+                              WebkitBackdropFilter: 'blur(8px) saturate(1.2)',
+                              border: '1px solid rgba(255, 255, 255, 0.25)'
+                            }}
+                            title="将客户回复应用到输入框"
+                          >
+                            <ArrowRight className="w-4 h-4" />
+                            <span>应用客户回复</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => {
+                              console.log('🔘 应用客户回复按钮被点击，内容:', message.customerReply)
+                              setInput(message.customerReply)
+                            }}
+                            className="flex-1 px-3 py-2 text-white rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm"
+                            style={{
+                              background: 'rgba(255, 255, 255, 0.15)',
+                              backdropFilter: 'blur(8px) saturate(1.2)',
+                              WebkitBackdropFilter: 'blur(8px) saturate(1.2)',
+                              border: '1px solid rgba(255, 255, 255, 0.25)'
+                            }}
+                            title="将客户回复应用到输入框"
+                          >
+                            <ArrowRight className="w-4 h-4" />
+                            <span>应用客户回复</span>
+                          </button>
+                          <button
+                            onClick={() => onMarkContactInstructionSent && onMarkContactInstructionSent(message.id)}
+                            className="flex-1 px-3 py-2 text-white rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm"
+                            style={{
+                              background: 'rgba(255, 255, 255, 0.15)',
+                              backdropFilter: 'blur(8px) saturate(1.2)',
+                              WebkitBackdropFilter: 'blur(8px) saturate(1.2)',
+                              border: '1px solid rgba(255, 255, 255, 0.25)'
+                            }}
+                            title="发送联络指令到对应部门"
+                          >
+                            <Users className="w-4 h-4" />
+                            <span>发送指令到对应部门</span>
+                          </button>
+                        </div>
+                      )}
+                      
+                      <div className="text-xs text-gray-300 mt-2 opacity-90" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                         {new Date(message.timestamp).toLocaleTimeString()}
                       </div>
                     </div>
