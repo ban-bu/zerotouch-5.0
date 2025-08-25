@@ -14,6 +14,7 @@ const SolutionPanel = ({
   onGenerateFollowUp,
   onGenerateDepartmentContact,
   onMarkContactInstructionSent,
+  onMarkCustomerReplyApplied,
   onConfirmSend,
   onCancelIteration,
   // 新增：勾选框相关props
@@ -47,6 +48,19 @@ const SolutionPanel = ({
   useEffect(() => {
     console.log('📝 输入框内容更新:', input)
   }, [input])
+
+  // 调试部门联络指令消息
+  useEffect(() => {
+    const departmentContactMessages = messages.filter(msg => msg.type === 'department_contact')
+    if (departmentContactMessages.length > 0) {
+      console.log('🏢 当前部门联络指令消息:', departmentContactMessages.map(msg => ({
+        id: msg.id,
+        customerReply: msg.customerReply,
+        contactInstruction: msg.contactInstruction,
+        instructionSent: msg.instructionSent
+      })))
+    }
+  }, [messages])
 
   // 协商面板组件
   const NegotiationPanel = ({ messageId, onSendNegotiation, onCancel }) => {
@@ -937,6 +951,61 @@ const SolutionPanel = ({
                             overflowWrap: 'break-word'
                           }}>{message.customerReply}</p>
                         </div>
+                        
+                        {/* 客户回复应用状态/按钮 - 直接放在客户回复下方 */}
+                        <div className="mt-2">
+                          {message.customerReplyApplied ? (
+                            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-2">
+                              <div className="text-sm text-blue-800 dark:text-blue-200 flex items-center space-x-2">
+                                <CheckCircle className="w-4 h-4" />
+                                <span>✓ 客户回复已应用到输入框</span>
+                              </div>
+                              <div className="text-xs text-blue-600 dark:text-blue-300 mt-1">
+                                应用时间: {new Date(message.appliedTimestamp).toLocaleString()}
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={(e) => {
+                                console.log('🔘 应用客户回复按钮被点击', {
+                                  customerReply: message.customerReply,
+                                  customerReplyLength: message.customerReply?.length,
+                                  messageId: message.id,
+                                  event: e
+                                })
+                                if (message.customerReply) {
+                                  console.log('🎯 准备设置输入框内容:', message.customerReply)
+                                  console.log('🎯 当前输入框内容:', input)
+                                  
+                                  // 立即设置输入框内容
+                                  setInput(message.customerReply)
+                                  
+                                  // 延迟验证状态是否正确更新
+                                  setTimeout(() => {
+                                    console.log('🔍 验证设置后的输入框内容:', input)
+                                  }, 100)
+                                  
+                                  // 标记为已应用
+                                  onMarkCustomerReplyApplied && onMarkCustomerReplyApplied(message.id)
+                                  console.log('✅ 设置输入框内容并标记为已应用:', message.customerReply)
+                                } else {
+                                  console.error('❌ customerReply为空或未定义')
+                                }
+                              }}
+                              className="w-full px-3 py-2 text-white rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm"
+                              style={{
+                                background: 'rgba(255, 255, 255, 0.15)',
+                                backdropFilter: 'blur(8px) saturate(1.2)',
+                                WebkitBackdropFilter: 'blur(8px) saturate(1.2)',
+                                border: '1px solid rgba(255, 255, 255, 0.25)'
+                              }}
+                              title="将客户回复应用到输入框"
+                            >
+                              <ArrowRight className="w-4 h-4" />
+                              <span>应用客户回复</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
                       
                       {/* 联络指令显示 */}
@@ -964,9 +1033,9 @@ const SolutionPanel = ({
                         </div>
                       </div>
                       
-                      {/* 状态显示和操作按钮 */}
-                      {message.instructionSent ? (
-                        <div className="space-y-2">
+                      {/* 联络指令发送状态/按钮 */}
+                      <div className="mt-2">
+                        {message.instructionSent ? (
                           <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-2">
                             <div className="text-sm text-green-800 dark:text-green-200 flex items-center space-x-2">
                               <CheckCircle className="w-4 h-4" />
@@ -976,46 +1045,10 @@ const SolutionPanel = ({
                               发送时间: {new Date(message.sentTimestamp).toLocaleString()}
                             </div>
                           </div>
-                          <button
-                            onClick={() => {
-                              console.log('🔘 应用客户回复按钮被点击，内容:', message.customerReply)
-                              setInput(message.customerReply)
-                            }}
-                            className="w-full px-3 py-2 text-white rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm"
-                            style={{
-                              background: 'rgba(255, 255, 255, 0.15)',
-                              backdropFilter: 'blur(8px) saturate(1.2)',
-                              WebkitBackdropFilter: 'blur(8px) saturate(1.2)',
-                              border: '1px solid rgba(255, 255, 255, 0.25)'
-                            }}
-                            title="将客户回复应用到输入框"
-                          >
-                            <ArrowRight className="w-4 h-4" />
-                            <span>应用客户回复</span>
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => {
-                              console.log('🔘 应用客户回复按钮被点击，内容:', message.customerReply)
-                              setInput(message.customerReply)
-                            }}
-                            className="flex-1 px-3 py-2 text-white rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm"
-                            style={{
-                              background: 'rgba(255, 255, 255, 0.15)',
-                              backdropFilter: 'blur(8px) saturate(1.2)',
-                              WebkitBackdropFilter: 'blur(8px) saturate(1.2)',
-                              border: '1px solid rgba(255, 255, 255, 0.25)'
-                            }}
-                            title="将客户回复应用到输入框"
-                          >
-                            <ArrowRight className="w-4 h-4" />
-                            <span>应用客户回复</span>
-                          </button>
+                        ) : (
                           <button
                             onClick={() => onMarkContactInstructionSent && onMarkContactInstructionSent(message.id)}
-                            className="flex-1 px-3 py-2 text-white rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm"
+                            className="w-full px-3 py-2 text-white rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm"
                             style={{
                               background: 'rgba(255, 255, 255, 0.15)',
                               backdropFilter: 'blur(8px) saturate(1.2)',
@@ -1027,8 +1060,8 @@ const SolutionPanel = ({
                             <Users className="w-4 h-4" />
                             <span>发送指令到对应部门</span>
                           </button>
-                        </div>
-                      )}
+                        )}
+                      </div>
                       
                       <div className="text-xs text-gray-300 mt-2 opacity-90" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                         {new Date(message.timestamp).toLocaleTimeString()}
@@ -1136,7 +1169,7 @@ const SolutionPanel = ({
                   onClick={onGenerateFollowUpBySelectedInfo}
                   disabled={iterationProcessing || !missingInfoOptions.some(opt => opt.selected)}
                   className="flex-1 btn-primary p-3 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none transition-all duration-200 hover:scale-105 flex items-center justify-center space-x-2"
-                  title="生成追问"
+                  title="直接生成追问"
                 >
                   {iterationProcessing ? (
                     <>
@@ -1146,7 +1179,7 @@ const SolutionPanel = ({
                   ) : (
                     <>
                       <ArrowRight className="w-4 h-4" />
-                      <span>生成追问 ({missingInfoOptions.filter(opt => opt.selected).length})</span>
+                      <span>直接生成追问 ({missingInfoOptions.filter(opt => opt.selected).length})</span>
                     </>
                   )}
                 </button>
@@ -1287,7 +1320,7 @@ const SolutionPanel = ({
                   WebkitBackdropFilter: 'blur(14px) saturate(1.2)',
                   border: '1px solid rgba(255, 255, 255, 0.3)'
                 }}
-                title="AI生成追问"
+                title="AI直接生成追问"
               >
                 {iterationProcessing ? (
                   <>
@@ -1297,7 +1330,7 @@ const SolutionPanel = ({
                 ) : (
                   <>
                     <MessageSquare className="w-4 h-4 text-white" />
-                    <span className="font-semibold text-sm" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.35)' }}>生成相应追问</span>
+                    <span className="font-semibold text-sm" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.35)' }}>直接生成追问</span>
                   </>
                 )}
               </button>

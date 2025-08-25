@@ -1059,7 +1059,9 @@ export const useMessageFlow = (currentScenario) => {
         timestamp: new Date().toISOString(),
         id: `contact_${Date.now()}`,
         instructionSent: false, // 初始化为未发送状态
-        sentTimestamp: null
+        sentTimestamp: null,
+        customerReplyApplied: false, // 初始化为未应用状态
+        appliedTimestamp: null
       }
       addMessage('solution', contactMessage)
 
@@ -1093,6 +1095,21 @@ export const useMessageFlow = (currentScenario) => {
         } : msg
       )
     }))
+  }, [])
+
+  // 标记客户回复为已应用
+  const markCustomerReplyApplied = useCallback((contactId) => {
+    setMessages(prev => ({
+      ...prev,
+      solution: prev.solution.map(msg => 
+        msg.id === contactId && msg.type === 'department_contact' ? {
+          ...msg,
+          customerReplyApplied: true,
+          appliedTimestamp: new Date().toISOString()
+        } : msg
+      )
+    }))
+    console.log('✅ 客户回复已标记为应用状态', contactId)
   }, [])
 
   // 新增：清空所有状态
@@ -1147,6 +1164,7 @@ export const useMessageFlow = (currentScenario) => {
     generateFollowUp,
     generateDepartmentContact,
     markContactInstructionSent,
+    markCustomerReplyApplied,
     confirmSendResponse,
     cancelIteration,
     clearMessages: clearAllStates
