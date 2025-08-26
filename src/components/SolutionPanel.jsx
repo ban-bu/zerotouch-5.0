@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Send, Users, User, Bot, FileText, Lightbulb, MessageSquare, CheckCircle, XCircle, AlertCircle, ArrowRight, Check, MessageCircle } from 'lucide-react'
 import AnimatedTransition from './AnimatedTransition'
+import { TypingLoader } from './LoadingStates'
 
 const SolutionPanel = ({ 
   scenario, 
@@ -10,11 +11,16 @@ const SolutionPanel = ({
   iterationProcessing, // 新增：迭代处理状态
   iterationMode,
   pendingResponse,
+  directSendCandidate,
+  onConfirmDirectSend,
+  onCancelDirectSend,
   onGenerateSuggestion,
   onGenerateFollowUp,
   onGenerateDepartmentContact,
   onMarkContactInstructionSent,
   onMarkCustomerReplyApplied,
+  onSendToProblem,
+  onPrepareDirectSendCandidate,
   onConfirmSend,
   onCancelIteration,
   onSetInput, // 新增：设置输入框内容的回调
@@ -170,6 +176,24 @@ const SolutionPanel = ({
     })
 
     setInput('')
+  }
+
+  // 新增：直接发送到问题端（不经AI转译）
+  const handleDirectSend = () => {
+    if (!input.trim()) return
+    if (onSendToProblem) {
+      onSendToProblem({ text: input.trim(), timestamp: new Date().toISOString() })
+      setInput('')
+    }
+  }
+
+  // 新增：确认直发处理
+  const handleConfirmDirectSend = () => {
+    if (!input.trim()) return
+    if (onConfirmDirectSend) {
+      onConfirmDirectSend(input.trim())
+      setInput('')
+    }
   }
 
   const handleConfirmSend = () => {
@@ -981,6 +1005,12 @@ const SolutionPanel = ({
                                   
                                   // 标记为已应用
                                   onMarkCustomerReplyApplied && onMarkCustomerReplyApplied(message.id)
+                                  // 设置直发候选，走与“接受追问”一致的确认机制
+                                  onPrepareDirectSendCandidate && onPrepareDirectSendCandidate({
+                                    type: 'customer_reply',
+                                    sourceMessageId: message.id,
+                                    sourceText: message.customerReply
+                                  })
                                   console.log('✅ 设置输入框内容并标记为已应用:', message.customerReply)
                                 } else {
                                   console.error('❌ customerReply为空或未定义')
@@ -1235,38 +1265,53 @@ const SolutionPanel = ({
                 />
               </div>
               
-              <div className="flex flex-col justify-end">
+              <div className="flex flex-col justify-end space-y-2">
+                <button
+                  type="button"
+                  onClick={handleDirectSend}
+                  disabled={!input.trim() || isProcessing || iterationProcessing}
+                  className="w-full px-4 py-3 text-white rounded-lg transition-all duration-200 flex items-center justify-center space-x-2 text-sm font-medium hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="直接发送至问题端（不经AI转译）"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(16, 185, 129, 0.15) 100%)',
+                    backdropFilter: 'blur(10px) saturate(1.3)',
+                    WebkitBackdropFilter: 'blur(10px) saturate(1.3)',
+                    border: '1px solid rgba(34, 197, 94, 0.3)',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+                  }}
+                >
+                  <ArrowRight className="w-4 h-4" />
+                  <span>直接发送</span>
+                </button>
                 <button
                   type="submit"
                   disabled={!input.trim() || isProcessing || iterationProcessing}
                   className="btn-primary p-3 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none transition-all duration-200 hover:scale-105"
-                  title="发送解决方案"
+                  title="AI转译后发送"
                 >
-                  <Send className="w-5 h-5" />
+                  <span className="text-sm">AI转译发送</span>
                 </button>
               </div>
             </div>
-            
-            {/* AI功能已移至中介面板提示 */}
-            <div className="flex items-center justify-center p-3 rounded-xl bg-gradient-to-r from-purple-100/50 to-indigo-100/50 dark:from-purple-900/20 dark:to-indigo-900/20 border border-purple-200/30 dark:border-purple-700/30">
-              <div className="text-center">
-                <div className="flex items-center justify-center space-x-2 text-purple-600 dark:text-purple-400 mb-1">
-                  <Lightbulb className="w-4 h-4" />
-                  <span className="text-sm font-medium">AI智能功能</span>
-                </div>
-                <p className="text-xs text-purple-500 dark:text-purple-300">
-                  所有AI生成功能已集中到中间的AI中介处理面板
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div className="text-xs text-gray-500 dark:text-gray-400">
-                💡 基于LLM中介的分析结果提供解决方案
-              </div>
-              
 
-            </div>
+            {/* 方案端：AI转译中的提示 */}
+            {isProcessing && (
+              <div className="message-bubble message-ai">
+                <div className="flex items-center space-x-2">
+                  <Bot className="w-4 h-4 text-gray-600" />
+                  <TypingLoader message="AI正在转译" />
+                </div>
+              </div>
+            )}
+
+            {/* 直发对比确认条 - 已取消需求，不再显示 */}
+            {false && directSendCandidate && (
+              <div className="p-3 rounded-xl border border-orange-300/40 bg-orange-50/60 dark:bg-orange-900/20"></div>
+            )}
+            
+            {/* AI功能提示已取消 */}
+            
+            {/* Footer 辅助信息已移除 */}
           </form>
         </div>
       )}

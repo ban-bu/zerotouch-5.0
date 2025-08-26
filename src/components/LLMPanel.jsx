@@ -29,6 +29,8 @@ const LLMPanel = ({
   onSendNegotiationRequest,
   onCancelFollowUpNegotiation,
   onSendFollowUpNegotiationRequest,
+  // 新增：直发候选准备（用于应用客户回复走确认机制）
+  onPrepareDirectSendCandidate,
   // 新增：缺失信息选择与基于选择生成追问，迁移到中间面板
   missingInfoOptions = [],
   showMissingInfoPanel = false,
@@ -176,8 +178,8 @@ const LLMPanel = ({
 
     return (
       <div className="space-y-4">
-        {/* AI功能选择区域 */}
-        <div className="grid grid-cols-3 gap-3">
+        {/* AI功能选择区域 - 2x2 排列 */}
+        <div className="grid grid-cols-2 gap-3">
           <button
             onClick={() => handleGenerateAction('suggestion')}
             disabled={processing}
@@ -211,16 +213,18 @@ const LLMPanel = ({
             </div>
           </button>
 
-          <button
-            onClick={() => handleGenerateAction('needs_analysis')}
-            disabled={processing}
-            className="p-3 rounded-xl bg-gradient-to-r from-teal-500/20 to-cyan-500/20 hover:from-teal-500/30 hover:to-cyan-500/30 border border-teal-500/30 transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <div className="flex items-center space-x-2">
-              <Zap className="w-5 h-5 text-teal-600" />
-              <span className="text-sm font-medium text-teal-700 dark:text-teal-300">需求分析</span>
-            </div>
-          </button>
+          {false && (
+            <button
+              onClick={() => handleGenerateAction('needs_analysis')}
+              disabled={processing}
+              className="p-3 rounded-xl bg-gradient-to-r from-teal-500/20 to-cyan-500/20 hover:from-teal-500/30 hover:to-cyan-500/30 border border-teal-500/30 transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <div className="flex items-center space-x-2">
+                <Zap className="w-5 h-5 text-teal-600" />
+                <span className="text-sm font-medium text-teal-700 dark:text-teal-300">需求分析</span>
+              </div>
+            </button>
+          )}
 
           <button
             onClick={() => setShowControls(!showControls)}
@@ -919,8 +923,12 @@ const LLMPanel = ({
                                 </div>
                                 <button
                                   onClick={() => {
-                                    // 发送给问题端而不是解决方案端
-                                    onSendToProblem && onSendToProblem({text: message.structuredOutput.customerReply, timestamp: new Date().toISOString()})
+                                    const reply = message.structuredOutput.customerReply
+                                    // 仅填入右侧输入框，不显示直发确认条（已取消需求）
+                                    if (onSetSolutionInput) {
+                                      onSetSolutionInput(reply)
+                                      onCancelIteration && onCancelIteration()
+                                    }
                                     setMessageStates(prev => ({
                                       ...prev,
                                       [`${index}_customerReply`]: { applied: true }

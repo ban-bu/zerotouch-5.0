@@ -148,7 +148,7 @@ const ProblemPanel = ({ scenario, messages, onSendMessage, isProcessing }) => {
           <div className="message-bubble message-ai">
             <div className="flex items-center space-x-2">
               <Bot className="w-4 h-4 text-gray-600" />
-              <TypingLoader message="AI正在分析您的问题" />
+              <TypingLoader message="AI正在转译" />
             </div>
           </div>
         )}

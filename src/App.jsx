@@ -66,8 +66,10 @@ function App() {
     messages,
     llmProcessing,
     iterationProcessing,
+    llmProcessingContext,
     iterationMode,
     pendingResponse,
+    directSendCandidate,
     // 新增的状态和方法
     missingInfoOptions,
     showMissingInfoPanel,
@@ -89,6 +91,9 @@ function App() {
     cancelFollowUpNegotiation,
     sendFollowUpNegotiationRequest,
     rejectFollowUp,
+    confirmDirectSendToProblem,
+    cancelDirectSend,
+    prepareDirectSendCandidate,
     // 智能追问反馈相关
     acceptIntelligentFollowUp,
     negotiateIntelligentFollowUp,
@@ -330,7 +335,7 @@ function App() {
                   scenario={scenario}
                   messages={messages.problem}
                   onSendMessage={sendProblemMessage}
-                  isProcessing={llmProcessing}
+                  isProcessing={llmProcessing && llmProcessingContext === 'problem'}
                   inputRef={problemInputRef}
                   settings={settings}
                 />
@@ -370,6 +375,7 @@ function App() {
                   onSendNegotiationRequest={sendNegotiationRequest}
                   onCancelFollowUpNegotiation={cancelFollowUpNegotiation}
                   onSendFollowUpNegotiationRequest={sendFollowUpNegotiationRequest}
+                  onPrepareDirectSendCandidate={prepareDirectSendCandidate}
                   // 缺失信息与追问生成：改由中间面板承载
                   missingInfoOptions={missingInfoOptions}
                   showMissingInfoPanel={showMissingInfoPanel}
@@ -387,14 +393,19 @@ function App() {
                   scenario={scenario}
                   messages={messages.solution}
                   onSendMessage={sendSolutionMessage}
-                  isProcessing={llmProcessing}
+                  onSendToProblem={sendCustomerReplyToProblem}
+                  isProcessing={llmProcessing && llmProcessingContext === 'solution'}
                   iterationMode={iterationMode}
                   pendingResponse={pendingResponse}
+                  directSendCandidate={directSendCandidate}
+                  onConfirmDirectSend={confirmDirectSendToProblem}
+                  onCancelDirectSend={cancelDirectSend}
                   onGenerateSuggestion={generateSuggestion}
                   onGenerateFollowUp={generateFollowUp}
                   onGenerateDepartmentContact={generateDepartmentContact}
                   onMarkContactInstructionSent={markContactInstructionSent}
                   onMarkCustomerReplyApplied={markCustomerReplyApplied}
+                  onPrepareDirectSendCandidate={prepareDirectSendCandidate}
                   onConfirmSend={confirmSendResponse}
                   onCancelIteration={cancelIteration}
                   onSetInput={handleSetSolutionInputRef}

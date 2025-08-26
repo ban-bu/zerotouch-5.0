@@ -8,6 +8,7 @@ export const useMessageFlow = (currentScenario) => {
     solution: []
   })
   const [llmProcessing, setLlmProcessing] = useState(false)
+  const [llmProcessingContext, setLlmProcessingContext] = useState(null) // 'problem' | 'solution' | null
   const [iterationProcessing, setIterationProcessing] = useState(false) // 新增：迭代处理状态
   const [iterationMode, setIterationMode] = useState(false) // 新增：迭代模式状态
   const [pendingResponse, setPendingResponse] = useState(null) // 新增：待发送的响应
@@ -16,6 +17,9 @@ export const useMessageFlow = (currentScenario) => {
   const [missingInfoOptions, setMissingInfoOptions] = useState([])
   const [showMissingInfoPanel, setShowMissingInfoPanel] = useState(false)
   const [currentNeedsAnalysis, setCurrentNeedsAnalysis] = useState(null)
+
+  // 新增：接受追问后直发候选（用于对比确认）
+  const [directSendCandidate, setDirectSendCandidate] = useState(null)
 
   const addMessage = useCallback((panel, message) => {
     setMessages(prev => ({
@@ -32,6 +36,8 @@ export const useMessageFlow = (currentScenario) => {
     })
     setIterationMode(false)
     setPendingResponse(null)
+    setLlmProcessing(false)
+    setLlmProcessingContext(null)
   }, [])
 
   // 发送客户回复到问题端（不触发转译）
@@ -55,7 +61,8 @@ export const useMessageFlow = (currentScenario) => {
     }
     addMessage('problem', userMessage)
 
-    // 开始LLM处理
+    // 开始LLM处理（问题端 → 方案端）
+    setLlmProcessingContext('problem')
     setLlmProcessing(true)
 
     try {
@@ -147,6 +154,7 @@ export const useMessageFlow = (currentScenario) => {
       addMessage('llm', errorMessage)
     } finally {
       setLlmProcessing(false)
+      setLlmProcessingContext(null)
     }
   }, [addMessage, currentScenario, messages.problem, messages.solution])
 
@@ -166,7 +174,7 @@ export const useMessageFlow = (currentScenario) => {
       setCurrentNeedsAnalysis(null)
     }
 
-    // 检查是否是协商后的追问或客户回复，如果是则直接发送，不需要AI转译
+    // 检查是否是协商后的追问、已接受的追问或客户回复，如果是则直接发送，不需要AI转译
     const inputText = messageData.text.trim()
     
     // 检查协商后的追问
@@ -176,6 +184,13 @@ export const useMessageFlow = (currentScenario) => {
       msg.text.trim() === inputText
     )
 
+    // 新增：检查“已接受的追问”（即使未进入协商），也走直发
+    const acceptedFollowUp = messages.solution.find(msg =>
+      (msg.type === 'followup' || msg.type === 'intelligent_followup') &&
+      msg.feedbackGiven && msg.accepted &&
+      (msg.text || '').trim() === inputText
+    )
+
     // 检查部门联络指令中的客户回复
     const customerReplyMatch = messages.solution.find(msg => 
       msg.type === 'department_contact' && 
@@ -183,7 +198,7 @@ export const useMessageFlow = (currentScenario) => {
       msg.customerReply.trim() === inputText
     )
 
-    if (negotiatedFollowUp) {
+    if (negotiatedFollowUp || acceptedFollowUp) {
       console.log('🎯 检测到协商后的追问，直接发送给用户端，跳过AI转译处理')
       
       // 直接发送到问题端，不经过AI转译
@@ -191,17 +206,17 @@ export const useMessageFlow = (currentScenario) => {
         type: 'ai_response',
         text: inputText,
         timestamp: new Date().toISOString(),
-        isNegotiated: true // 标记为协商后的消息
+        isNegotiated: !!negotiatedFollowUp // 标记是否为协商后的消息
       }
       addMessage('problem', directMessage)
 
       // 添加处理过程到中介面板（显示跳过转译）
       const skipMessage = {
         type: 'processing',
-        title: '协商后追问直达用户端',
+        title: '追问直达用户端',
         steps: [{
           name: '处理说明',
-          content: '协商完成的追问直接发送给用户端，无需AI二次转译'
+          content: '已接受/协商完成的追问直接发送给用户端，无需AI二次转译'
         }],
         output: inputText,
         timestamp: new Date().toISOString()
@@ -239,7 +254,8 @@ export const useMessageFlow = (currentScenario) => {
       return // 直接返回，不进行后续的AI处理
     }
 
-    // 开始LLM处理（非协商后的追问）
+    // 开始LLM处理（方案端 → 问题端）
+    setLlmProcessingContext('solution')
     setLlmProcessing(true)
 
     try {
@@ -298,6 +314,7 @@ export const useMessageFlow = (currentScenario) => {
       addMessage('llm', errorMessage)
     } finally {
       setLlmProcessing(false)
+      setLlmProcessingContext(null)
     }
   }, [addMessage, currentScenario, messages.problem, messages.solution, showMissingInfoPanel])
 
@@ -467,6 +484,7 @@ export const useMessageFlow = (currentScenario) => {
     }
     addMessage('solution', userFinalMessage)
 
+    setLlmProcessingContext('solution')
     setLlmProcessing(true)
 
     try {
@@ -528,6 +546,7 @@ export const useMessageFlow = (currentScenario) => {
       addMessage('llm', errorMessage)
     } finally {
       setLlmProcessing(false)
+      setLlmProcessingContext(null)
     }
   }, [addMessage, currentScenario, messages.problem, messages.solution, llmProcessing])
 
@@ -910,6 +929,14 @@ export const useMessageFlow = (currentScenario) => {
     if (onSetInput && typeof onSetInput === 'function') {
       onSetInput(followUpMessage.text)
     }
+
+    // 设为直发候选，等待对比确认
+    setDirectSendCandidate({
+      type: 'followup',
+      sourceMessageId: followUpId,
+      sourceText: followUpMessage.text,
+      createdAt: new Date().toISOString()
+    })
   }, [messages.solution])
 
   // 新增：与AI协商追问
@@ -1060,7 +1087,62 @@ export const useMessageFlow = (currentScenario) => {
     if (onSetInput && typeof onSetInput === 'function') {
       onSetInput(followUpMessage.text)
     }
+
+    // 设为直发候选，等待对比确认
+    setDirectSendCandidate({
+      type: 'intelligent_followup',
+      sourceMessageId: followUpId,
+      sourceText: followUpMessage.text,
+      createdAt: new Date().toISOString()
+    })
   }, [messages.solution])
+
+  // 新增：确认直发到问题端（不转译）
+  const confirmDirectSendToProblem = useCallback((finalText) => {
+    if (!finalText || !finalText.trim()) return
+
+    // 直接发送到问题端
+    const directMessage = {
+      type: 'ai_response',
+      text: finalText.trim(),
+      timestamp: new Date().toISOString(),
+      isDirectFollowUp: true,
+      candidateType: directSendCandidate?.type
+    }
+    addMessage('problem', directMessage)
+
+    // 在中介面板记录一次处理说明
+    const infoMessage = {
+      type: 'processing',
+      title: '追问直达用户端',
+      steps: [{
+        name: '处理说明',
+        content: '已确认直发，跳过AI转译'
+      }],
+      output: finalText.trim(),
+      timestamp: new Date().toISOString()
+    }
+    addMessage('llm', infoMessage)
+
+    // 清空候选
+    setDirectSendCandidate(null)
+  }, [addMessage, directSendCandidate])
+
+  // 新增：取消直发流程，保留输入框内容
+  const cancelDirectSend = useCallback(() => {
+    setDirectSendCandidate(null)
+  }, [])
+
+  // 新增：外部准备直发候选（用于“应用客户回复”按钮）
+  const prepareDirectSendCandidate = useCallback((candidate) => {
+    if (!candidate || !candidate.sourceText) return
+    setDirectSendCandidate({
+      type: candidate.type || 'customer_reply',
+      sourceMessageId: candidate.sourceMessageId,
+      sourceText: candidate.sourceText,
+      createdAt: new Date().toISOString()
+    })
+  }, [])
 
   // 新增：拒绝智能追问
   const rejectIntelligentFollowUp = useCallback(async (followUpId) => {
@@ -1415,9 +1497,11 @@ export const useMessageFlow = (currentScenario) => {
   return {
     messages,
     llmProcessing,
+    llmProcessingContext,
     iterationProcessing,
     iterationMode,
     pendingResponse,
+    directSendCandidate,
     // 新增的状态和方法
     missingInfoOptions,
     showMissingInfoPanel,
@@ -1439,6 +1523,9 @@ export const useMessageFlow = (currentScenario) => {
     cancelFollowUpNegotiation,
     sendFollowUpNegotiationRequest,
     rejectFollowUp,
+    confirmDirectSendToProblem,
+    cancelDirectSend,
+    prepareDirectSendCandidate,
     // 智能追问反馈相关方法
     acceptIntelligentFollowUp,
     negotiateIntelligentFollowUp,
