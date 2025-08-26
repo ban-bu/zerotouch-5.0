@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react'
-import { Bot, Sparkles, Lightbulb, Zap, Layers, Filter, ArrowRight, MessageSquare, CheckCircle, XCircle, AlertCircle, MessageCircle, Send, Users } from 'lucide-react'
+import { Bot, Sparkles, Lightbulb, Zap, Layers, Filter, ArrowRight, MessageSquare, CheckCircle, XCircle, AlertCircle, MessageCircle, Send, Users, Check } from 'lucide-react'
 import { LLMProcessingLoader, TypingLoader } from './LoadingStates'
 import AnimatedTransition from './AnimatedTransition'
 
@@ -8,6 +8,8 @@ const LLMPanel = ({
   messages, 
   onGenerateSuggestion,
   onGenerateFollowUp,
+  onGenerateIntelligentFollowUp,
+  onGenerateNeedsAnalysis,
   onGenerateDepartmentContact,
   onGenerateDepartmentContactOnly,
   onChatWithAI,
@@ -26,7 +28,13 @@ const LLMPanel = ({
   onCancelNegotiation,
   onSendNegotiationRequest,
   onCancelFollowUpNegotiation,
-  onSendFollowUpNegotiationRequest
+  onSendFollowUpNegotiationRequest,
+  // 新增：缺失信息选择与基于选择生成追问，迁移到中间面板
+  missingInfoOptions = [],
+  showMissingInfoPanel = false,
+  onToggleMissingInfoOption,
+  onGenerateFollowUpBySelectedInfo,
+  onSkipInfoCollection
 }) => {
   const messagesEndRef = useRef(null)
   const [currentMode, setCurrentMode] = useState('analysis') // 'analysis', 'suggestion', 'followup', 'response'
@@ -134,6 +142,12 @@ const LLMPanel = ({
         case 'followup':
           onGenerateFollowUp && onGenerateFollowUp()
           break
+        case 'intelligent_followup':
+          onGenerateIntelligentFollowUp && onGenerateIntelligentFollowUp()
+          break
+        case 'needs_analysis':
+          onGenerateNeedsAnalysis && onGenerateNeedsAnalysis()
+          break
         case 'department':
           // 部门联络需要基于最近的建议或对话内容
           const recentContent = messages.find(msg => msg.title.includes('建议'))?.output || 
@@ -163,7 +177,7 @@ const LLMPanel = ({
     return (
       <div className="space-y-4">
         {/* AI功能选择区域 */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           <button
             onClick={() => handleGenerateAction('suggestion')}
             disabled={processing}
@@ -176,13 +190,13 @@ const LLMPanel = ({
           </button>
 
           <button
-            onClick={() => handleGenerateAction('followup')}
+            onClick={() => handleGenerateAction('intelligent_followup')}
             disabled={processing}
             className="p-3 rounded-xl bg-gradient-to-r from-orange-500/20 to-red-500/20 hover:from-orange-500/30 hover:to-red-500/30 border border-orange-500/30 transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <div className="flex items-center space-x-2">
               <MessageSquare className="w-5 h-5 text-orange-600" />
-              <span className="text-sm font-medium text-orange-700 dark:text-orange-300">生成追问</span>
+              <span className="text-sm font-medium text-orange-700 dark:text-orange-300">智能追问</span>
             </div>
           </button>
 
@@ -194,6 +208,17 @@ const LLMPanel = ({
             <div className="flex items-center space-x-2">
               <Users className="w-5 h-5 text-green-600" />
               <span className="text-sm font-medium text-green-700 dark:text-green-300">部门联络</span>
+            </div>
+          </button>
+
+          <button
+            onClick={() => handleGenerateAction('needs_analysis')}
+            disabled={processing}
+            className="p-3 rounded-xl bg-gradient-to-r from-teal-500/20 to-cyan-500/20 hover:from-teal-500/30 hover:to-cyan-500/30 border border-teal-500/30 transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <div className="flex items-center space-x-2">
+              <Zap className="w-5 h-5 text-teal-600" />
+              <span className="text-sm font-medium text-teal-700 dark:text-teal-300">需求分析</span>
             </div>
           </button>
 
@@ -271,6 +296,8 @@ const LLMPanel = ({
       return <Lightbulb className="w-4 h-4 text-purple-600" />
     } else if (title.includes('追问')) {
       return <Filter className="w-4 h-4 text-orange-600" />
+    } else if (title.includes('需求分析')) {
+      return <Zap className="w-4 h-4 text-teal-600" />
     } else if (title.includes('部门联络') || title.includes('联络指令') || title.includes('客户回复和部门联络') || title.includes('生成部门联络')) {
       return <Users className="w-4 h-4 text-green-600" />
     } else if (title.includes('AI对话')) {
@@ -290,6 +317,8 @@ const LLMPanel = ({
       return '正在生成专业建议...'
     } else if (title.includes('追问')) {
       return '正在生成追问问题...'
+    } else if (title.includes('需求分析')) {
+      return '正在分析用户需求...'
     } else if (title.includes('部门联络') || title.includes('联络指令') || title.includes('客户回复和部门联络') || title.includes('生成部门联络')) {
       return '正在生成联络指令...'
     } else if (title.includes('AI对话')) {
@@ -399,6 +428,79 @@ const LLMPanel = ({
               </div>
             </div>
           </AnimatedTransition>
+
+            {/* 缺失信息勾选与生成追问 - 已迁移到中间面板 */}
+            {showMissingInfoPanel && (
+              <AnimatedTransition type="slide-up" show={true}>
+                <div className="p-4 glass-effect div-with-background rounded-xl border border-orange-200/40">
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2 text-orange-800 dark:text-orange-200">
+                      <AlertCircle className="w-5 h-5" />
+                      <span className="text-sm font-semibold">选择希望获得的信息</span>
+                    </div>
+                    <p className="text-xs text-orange-700 dark:text-orange-300">
+                      AI分析建议以下信息点可提升沟通效率，请勾选需要补充了解的内容：
+                    </p>
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {missingInfoOptions.map((option, index) => (
+                        <div
+                          key={index}
+                          className={`p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
+                            option.selected
+                              ? 'border-orange-300 bg-orange-100 dark:bg-orange-900/30'
+                              : 'border-gray-200 bg-white dark:bg-gray-800 hover:border-orange-200'
+                          }`}
+                          onClick={() => onToggleMissingInfoOption && onToggleMissingInfoOption(index)}
+                        >
+                          <div className="flex items-start space-x-3">
+                            <div className={`mt-1 w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                              option.selected ? 'border-orange-500 bg-orange-500' : 'border-gray-300'
+                            }`}>
+                              {option.selected && <Check className="w-3 h-3 text-white" />}
+                            </div>
+                            <div className="flex-1">
+                              <div className="font-medium text-gray-900 dark:text-gray-100">{option.name}</div>
+                              <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">{option.description}</div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={onGenerateFollowUpBySelectedInfo}
+                        disabled={processing || !missingInfoOptions.some(opt => opt.selected)}
+                        className="flex-1 btn-primary p-3 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none transition-all duration-200 hover:scale-105 flex items-center justify-center space-x-2"
+                        title="直接生成追问"
+                      >
+                        {processing ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            <span>生成中...</span>
+                          </>
+                        ) : (
+                          <>
+                            <ArrowRight className="w-4 h-4" />
+                            <span>直接生成追问 ({missingInfoOptions.filter(opt => opt.selected).length})</span>
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={onSkipInfoCollection}
+                        disabled={processing}
+                        className="px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                        title="跳过，直接回复"
+                      >
+                        <span>跳过</span>
+                      </button>
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                      选择信息点后，AI将生成自然流畅的追问供您使用
+                    </div>
+                  </div>
+                </div>
+              </AnimatedTransition>
+            )}
 
             {/* 消息历史显示 */}
             <div className="space-y-3">

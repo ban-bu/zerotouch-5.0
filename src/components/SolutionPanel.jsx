@@ -265,38 +265,14 @@ const SolutionPanel = ({
                     <Bot className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
                     <div className="flex-1">
                       <div className="text-xs font-semibold text-white mb-1" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
-                        来自LLM的智能分析需求
+                        来自LLM的需求转译
                       </div>
-                      {/* 需求理解 */}
-                      {message.needsAnalysis && (
-                        <div className="mb-2 p-2 rounded text-sm" style={{
-                          background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(147, 197, 253, 0.08) 100%)',
-                          backdropFilter: 'blur(10px) saturate(1.2)',
-                          WebkitBackdropFilter: 'blur(10px) saturate(1.2)',
-                          border: '1px solid rgba(147, 197, 253, 0.25)',
-                          borderRadius: '8px'
-                        }}>
-                          <strong>需求理解：</strong>{message.needsAnalysis}
-                        </div>
-                      )}
+                      {/* 需求理解 - 已移至AI中介面板，此处不再显示 */}
                       {/* 需求转译内容 */}
                       <div className="message-content">
                         <p className="whitespace-pre-wrap text-gray-800 dark:text-gray-200 select-text">{message.text}</p>
                       </div>
-                      {/* 缺失信息提示 */}
-                      {message.missingInfoOptions && message.missingInfoOptions.length > 0 && (
-                        <div className="mt-2 p-2 bg-orange-100 border-l-4 border-orange-400 rounded text-sm">
-                          <div className="flex items-center space-x-1">
-                            <AlertCircle className="w-3 h-3 text-orange-600" />
-                            <span className="text-orange-800 font-medium">
-                              发现 {message.missingInfoOptions.length} 个可了解的信息点
-                            </span>
-                          </div>
-                          <div className="text-orange-700 text-xs mt-1">
-                            建议了解更多信息以提供更精准的服务
-                          </div>
-                        </div>
-                      )}
+                      {/* 缺失信息提示 - 已移至AI中介面板，此处不再显示 */}
                       <div className="text-xs text-gray-300 mt-1 opacity-90" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                         {new Date(message.timestamp).toLocaleTimeString()}
                       </div>
@@ -1100,8 +1076,8 @@ const SolutionPanel = ({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* 缺失信息勾选面板 */}
-      {showMissingInfoPanel && (
+      {/* 缺失信息勾选面板 - 已迁移到AI中介面板，此处隐藏 */}
+      {showMissingInfoPanel && false && (
         <AnimatedTransition type="slide-up" show={true}>
           <div className="p-4 border-t border-gray-200/50 dark:border-gray-700/50" style={{
             background: 'linear-gradient(135deg, rgba(251, 146, 60, 0.08) 0%, rgba(251, 191, 36, 0.06) 100%)',

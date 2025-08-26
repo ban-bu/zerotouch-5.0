@@ -625,6 +625,122 @@ export const useMessageFlow = (currentScenario) => {
     setCurrentNeedsAnalysis(null)
   }, [])
 
+  // 新增：简单的智能追问生成（基于当前对话）
+  const generateSimpleIntelligentFollowUp = useCallback(async () => {
+    if (llmProcessing || iterationProcessing) return
+    
+    setIterationProcessing(true)
+    
+    try {
+      // 获取最近的对话内容
+      const recentProblemMessages = messages.problem.slice(-3)
+      const recentSolutionMessages = messages.solution.slice(-3)
+      
+      const content = [...recentProblemMessages, ...recentSolutionMessages]
+        .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+        .map(msg => msg.text || msg.output)
+        .join('\n')
+      
+      if (!content.trim()) {
+        console.log('没有足够的对话内容生成智能追问')
+        setIterationProcessing(false)
+        return
+      }
+
+      // 调用LLM生成智能追问
+      const llmResult = await processWithLLM({
+        type: 'generate_followup',
+        content: content,
+        scenario: currentScenario,
+        chatHistory: [...recentProblemMessages, ...recentSolutionMessages]
+      })
+
+      // 添加到LLM面板显示
+      const llmMessage = {
+        type: 'processing',
+        title: '生成智能追问',
+        steps: llmResult.steps,
+        output: llmResult.followUpMessage,
+        timestamp: new Date().toISOString()
+      }
+      addMessage('llm', llmMessage)
+
+      console.log('✅ 智能追问生成完成:', llmResult.followUpMessage)
+      
+    } catch (error) {
+      console.error('生成智能追问错误:', error)
+    } finally {
+      setIterationProcessing(false)
+    }
+  }, [llmProcessing, iterationProcessing, messages.problem, messages.solution, currentScenario, addMessage])
+
+  // 新增：独立的智能需求分析（基于当前对话）
+  const generateIntelligentNeedsAnalysis = useCallback(async () => {
+    if (llmProcessing || iterationProcessing) return
+    
+    setIterationProcessing(true)
+    
+    try {
+      // 获取最近的问题端消息（用户输入）
+      const recentProblemMessages = messages.problem.filter(msg => msg.type === 'user').slice(-2)
+      
+      if (recentProblemMessages.length === 0) {
+        console.log('没有用户输入内容进行需求分析')
+        setIterationProcessing(false)
+        return
+      }
+
+      // 使用最新的用户输入进行分析
+      const latestUserMessage = recentProblemMessages[recentProblemMessages.length - 1]
+      
+      // 构建聊天历史
+      const chatHistory = [
+        ...messages.problem.slice(-3),
+        ...messages.solution.slice(-3)
+      ].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+
+      // 调用智能需求分析
+      const llmResult = await processWithLLM({
+        type: 'analyze_needs_with_missing_info',
+        content: latestUserMessage.text,
+        image: latestUserMessage.image,
+        scenario: currentScenario,
+        chatHistory: chatHistory
+      })
+
+      // 添加到LLM面板显示
+      const llmMessage = {
+        type: 'processing',
+        title: '智能需求分析',
+        steps: [
+          {
+            name: '需求理解',
+            content: llmResult.needsUnderstanding
+          },
+          {
+            name: '信息选项',
+            content: llmResult.missingInfoOptions.map(opt => `${opt.name}：${opt.description}`).join('\n')
+          },
+          {
+            name: '需求转译',
+            content: llmResult.translation
+          }
+        ],
+        output: llmResult.needsUnderstanding,
+        timestamp: new Date().toISOString(),
+        structuredOutput: llmResult.structuredOutput
+      }
+      addMessage('llm', llmMessage)
+
+      console.log('✅ 智能需求分析完成:', llmResult)
+      
+    } catch (error) {
+      console.error('智能需求分析错误:', error)
+    } finally {
+      setIterationProcessing(false)
+    }
+  }, [llmProcessing, iterationProcessing, messages.problem, messages.solution, currentScenario, addMessage])
+
   // 新增：接受建议
   const acceptSuggestion = useCallback((suggestionId) => {
     setMessages(prev => ({
@@ -1308,6 +1424,8 @@ export const useMessageFlow = (currentScenario) => {
     currentNeedsAnalysis,
     toggleMissingInfoOption,
     generateFollowUpBySelectedInfo,
+    generateSimpleIntelligentFollowUp,
+    generateIntelligentNeedsAnalysis,
     skipInfoCollection,
     // 建议反馈相关方法
     acceptSuggestion,

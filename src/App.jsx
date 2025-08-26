@@ -74,6 +74,8 @@ function App() {
     currentNeedsAnalysis,
     toggleMissingInfoOption,
     generateFollowUpBySelectedInfo,
+    generateSimpleIntelligentFollowUp,
+    generateIntelligentNeedsAnalysis,
     skipInfoCollection,
     // 建议反馈相关方法
     acceptSuggestion,
@@ -349,6 +351,8 @@ function App() {
                   currentScenario={currentScenario}
                   onGenerateSuggestion={generateSuggestion}
                   onGenerateFollowUp={generateFollowUp}
+                  onGenerateIntelligentFollowUp={generateSimpleIntelligentFollowUp}
+                  onGenerateNeedsAnalysis={generateIntelligentNeedsAnalysis}
                   onGenerateDepartmentContact={generateDepartmentContact}
                   onGenerateDepartmentContactOnly={generateDepartmentContactOnly}
                   onChatWithAI={chatWithAI}
@@ -366,6 +370,12 @@ function App() {
                   onSendNegotiationRequest={sendNegotiationRequest}
                   onCancelFollowUpNegotiation={cancelFollowUpNegotiation}
                   onSendFollowUpNegotiationRequest={sendFollowUpNegotiationRequest}
+                  // 缺失信息与追问生成：改由中间面板承载
+                  missingInfoOptions={missingInfoOptions}
+                  showMissingInfoPanel={showMissingInfoPanel}
+                  onToggleMissingInfoOption={toggleMissingInfoOption}
+                  onGenerateFollowUpBySelectedInfo={generateFollowUpBySelectedInfo}
+                  onSkipInfoCollection={skipInfoCollection}
                 />
               </div>
             </AnimatedTransition>
@@ -391,12 +401,7 @@ function App() {
                   inputRef={solutionInputRef}
                   settings={settings}
                   iterationProcessing={iterationProcessing}
-                  // 新增：勾选框相关props
-                  missingInfoOptions={missingInfoOptions}
-                  showMissingInfoPanel={showMissingInfoPanel}
-                  onToggleMissingInfoOption={toggleMissingInfoOption}
-                  onGenerateFollowUpBySelectedInfo={generateFollowUpBySelectedInfo}
-                  onSkipInfoCollection={skipInfoCollection}
+                  // 缺失信息选择与生成追问已迁移到中间面板
                   // 新增：建议反馈相关props
                   onAcceptSuggestion={acceptSuggestion}
                   onNegotiateSuggestion={negotiateSuggestion}

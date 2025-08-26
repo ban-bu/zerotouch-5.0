@@ -7,7 +7,11 @@ const MODELSCOPE_CONFIG = {
   // [MODIFIED]
   baseURL: 'https://api-inference.modelscope.cn/v1/',
   model: 'deepseek-ai/DeepSeek-V3',
-  apiKey: 'ms-61ecf06f-49de-409b-b685-00a383961042'
+  apiKeys: [
+    'ms-61ecf06f-49de-409b-b685-00a383961042',  // 主要 key
+    'ms-86a76da4-13fa-4810-b412-759dc8511cc4'   // 备用 key
+  ],
+  currentKeyIndex: 0
 }
 
 // 日志辅助函数（避免输出过长内容和敏感信息）
@@ -28,113 +32,147 @@ const formatMessagesForLog = (messages) => {
   }
 }
 
-// 调用魔搭API的通用函数
+// 调用魔搭API的通用函数（支持多API key自动切换）
 const callModelScopeAPI = async (messages, temperature = 0.7, maxTokens = 4096) => {
-  try {
-    const isDev = typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV
-    console.group('[LLM] Request Details')
-    console.log('🔹 Model:', MODELSCOPE_CONFIG.model)
-    console.log('🔹 Temperature:', temperature)
-    console.log('🔹 Total Messages:', messages.length)
+  const maxRetries = MODELSCOPE_CONFIG.apiKeys.length
+  let lastError = null
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const currentApiKey = MODELSCOPE_CONFIG.apiKeys[MODELSCOPE_CONFIG.currentKeyIndex]
     
-    // 始终显示完整的prompt内容（格式化后）
-    console.group('📝 Complete Prompt Content')
     try {
-      messages.forEach((message, index) => {
-        console.group(`💬 Message ${index + 1}: [${message.role.toUpperCase()}]`)
-        console.log(message.content)
+      const isDev = typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV
+      console.group('[LLM] Request Details')
+      console.log('🔹 Model:', MODELSCOPE_CONFIG.model)
+      console.log('🔑 API Key Index:', MODELSCOPE_CONFIG.currentKeyIndex + 1, '/', MODELSCOPE_CONFIG.apiKeys.length)
+      console.log('🔹 Temperature:', temperature)
+      console.log('🔹 Total Messages:', messages.length)
+      
+      // 始终显示完整的prompt内容（格式化后）
+      console.group('📝 Complete Prompt Content')
+      try {
+        messages.forEach((message, index) => {
+          console.group(`💬 Message ${index + 1}: [${message.role.toUpperCase()}]`)
+          console.log(message.content)
+          console.groupEnd()
+        })
+      } catch (error) {
+        console.log('Error displaying messages:', error)
+      }
+      console.groupEnd()
+      
+      // 开发环境下额外显示JSON格式
+      if (isDev) {
+        console.group('🔧 Debug Info (JSON Format)')
+        try {
+          console.log('messages JSON:', JSON.stringify(messages, null, 2))
+        } catch (_) {
+          console.log('Failed to serialize messages to JSON')
+        }
         console.groupEnd()
-      })
-    } catch (error) {
-      console.log('Error displaying messages:', error)
-    }
-    console.groupEnd()
-    
-    // 开发环境下额外显示JSON格式
-    if (isDev) {
-      console.group('🔧 Debug Info (JSON Format)')
-      try {
-        console.log('messages JSON:', JSON.stringify(messages, null, 2))
-      } catch (_) {
-        console.log('Failed to serialize messages to JSON')
       }
-      console.groupEnd()
-    }
-    
-    console.time('[LLM] ⏱️ Request Latency')
-    // [MODIFIED] Deepbricks 兼容 OpenAI Chat Completions 路由
-    const response = await fetch(`${MODELSCOPE_CONFIG.baseURL}chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${MODELSCOPE_CONFIG.apiKey}`
-      },
-      body: JSON.stringify({
-        model: MODELSCOPE_CONFIG.model,
-        messages: messages,
-        temperature: temperature,
-        max_tokens: maxTokens,
-        stream: false
+      
+      console.time('[LLM] ⏱️ Request Latency')
+      // [MODIFIED] Deepbricks 兼容 OpenAI Chat Completions 路由
+      const response = await fetch(`${MODELSCOPE_CONFIG.baseURL}chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentApiKey}`
+        },
+        body: JSON.stringify({
+          model: MODELSCOPE_CONFIG.model,
+          messages: messages,
+          temperature: temperature,
+          max_tokens: maxTokens,
+          stream: false
+        })
       })
-    })
 
-    if (!response.ok) {
+      if (!response.ok) {
+        console.timeEnd('[LLM] ⏱️ Request Latency')
+        console.log('❌ HTTP Status:', response.status, response.statusText)
+        
+        // 尝试获取详细的错误信息
+        let errorDetail = ''
+        try {
+          const errorData = await response.json()
+          console.log('❌ API Error Details:', errorData)
+          errorDetail = errorData.error?.message || errorData.message || ''
+        } catch (e) {
+          console.log('❌ Failed to parse error response')
+        }
+        
+        // 如果是429错误且还有重试机会，切换到下一个key并等待
+        if (response.status === 429 && attempt < maxRetries - 1) {
+          MODELSCOPE_CONFIG.currentKeyIndex = (MODELSCOPE_CONFIG.currentKeyIndex + 1) % MODELSCOPE_CONFIG.apiKeys.length
+          console.log('🔄 Rate limit hit, switching to API key', MODELSCOPE_CONFIG.currentKeyIndex + 1)
+          
+          // 如果所有key都是相同的，等待一段时间再重试
+          const waitTime = (attempt + 1) * 2000 // 2秒、4秒、6秒...
+          console.log(`⏳ Waiting ${waitTime}ms before retry...`)
+          await new Promise(resolve => setTimeout(resolve, waitTime))
+          
+          console.groupEnd()
+          lastError = new Error(`API调用失败: ${response.status} ${response.statusText}${errorDetail ? ' - ' + errorDetail : ''}`)
+          continue // 重试下一个key
+        }
+        
+        console.groupEnd()
+        const errorMsg = errorDetail ? `API调用失败: ${response.status} ${response.statusText} - ${errorDetail}` : `API调用失败: ${response.status} ${response.statusText}`
+        throw new Error(errorMsg)
+      }
+
+      const data = await response.json()
+      const content = data?.choices?.[0]?.message?.content
+      
       console.timeEnd('[LLM] ⏱️ Request Latency')
-      console.log('❌ HTTP Status:', response.status, response.statusText)
       
-      // 尝试获取详细的错误信息
-      let errorDetail = ''
-      try {
-        const errorData = await response.json()
-        console.log('❌ API Error Details:', errorData)
-        errorDetail = errorData.error?.message || errorData.message || ''
-      } catch (e) {
-        console.log('❌ Failed to parse error response')
+      // 显示响应信息
+      console.group('📤 Response Details')
+      if (data?.usage) {
+        console.log('💰 Token Usage:', data.usage)
+      }
+      console.log('✅ Response Length:', content?.length || 0, 'characters')
+      console.groupEnd()
+      
+      // 显示完整的响应内容
+      console.group('📋 Complete Response Content')
+      console.log(content || '(Empty response)')
+      console.groupEnd()
+      
+      // 开发环境下显示原始数据
+      if (isDev) {
+        console.group('🔧 Raw Response Data')
+        try { 
+          console.log('Full API Response:', JSON.stringify(data, null, 2))
+        } catch (_) {
+          console.log('Failed to serialize response data')
+        }
+        console.groupEnd()
       }
       
       console.groupEnd()
-      const errorMsg = errorDetail ? `API调用失败: ${response.status} ${response.statusText} - ${errorDetail}` : `API调用失败: ${response.status} ${response.statusText}`
-      throw new Error(errorMsg)
-    }
-
-    const data = await response.json()
-    const content = data?.choices?.[0]?.message?.content
-    
-    console.timeEnd('[LLM] ⏱️ Request Latency')
-    
-    // 显示响应信息
-    console.group('📤 Response Details')
-    if (data?.usage) {
-      console.log('💰 Token Usage:', data.usage)
-    }
-    console.log('✅ Response Length:', content?.length || 0, 'characters')
-    console.groupEnd()
-    
-    // 显示完整的响应内容
-    console.group('📋 Complete Response Content')
-    console.log(content || '(Empty response)')
-    console.groupEnd()
-    
-    // 开发环境下显示原始数据
-    if (isDev) {
-      console.group('🔧 Raw Response Data')
-      try { 
-        console.log('Full API Response:', JSON.stringify(data, null, 2))
-      } catch (_) {
-        console.log('Failed to serialize response data')
-      }
+      return content
+      
+    } catch (error) {
+      try { console.groupEnd() } catch (_) {}
+      console.groupCollapsed('[LLM] Error')
+      console.error('魔搭API调用错误:', error)
       console.groupEnd()
+      
+      // 如果是429错误且还有其他API key可用，记录错误但不抛出
+      if (error.message.includes('429') && attempt < maxRetries - 1) {
+        lastError = error
+        continue
+      }
+      
+      throw error
     }
-    
-    console.groupEnd()
-    return content
-  } catch (error) {
-    try { console.groupEnd() } catch (_) {}
-    console.groupCollapsed('[LLM] Error')
-    console.error('魔搭API调用错误:', error)
-    console.groupEnd()
-    throw error
   }
+  
+  // 如果所有API key都失败了，抛出最后一个错误
+  throw lastError || new Error('所有API key都已达到使用限制')
 }
 
 // 统一清理输出文本，移除影响体验的模板化致歉或引导语
