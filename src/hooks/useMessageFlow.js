@@ -159,13 +159,12 @@ export const useMessageFlow = (currentScenario) => {
   }, [addMessage, currentScenario, messages.problem, messages.solution])
 
   const sendSolutionMessage = useCallback(async (messageData) => {
-    // 添加用户消息到方案端
+    // 不再把原始输入追加到方案端消息，仅用于上下文
     const userMessage = {
       type: 'user',
       text: messageData.text,
       timestamp: messageData.timestamp
     }
-    addMessage('solution', userMessage)
 
     // 隐藏信息选择面板（如果正在显示）
     if (showMissingInfoPanel) {
