@@ -206,6 +206,56 @@ const ensureCompleteSentence = (text) => {
   return trimmed + '。'
 }
 
+// AI对话功能 - 通用AI询问
+const chatWithAI = async (userQuestion, currentScenario, chatHistory = []) => {
+  try {
+    console.log('[LLM] 开始AI对话:', { userQuestion, scenario: currentScenario })
+    
+    const messages = [
+      {
+        role: 'system',
+        content: `你是一个智能助手，可以回答用户关于${currentScenario || '各种话题'}的问题。
+
+请遵循以下原则：
+1. 提供准确、有用的回答
+2. 回答要简洁明了，直接回应用户的问题
+3. 如果涉及到当前场景(${currentScenario})的专业知识，请提供相关的建议
+4. 保持友好和专业的语调
+5. 如果问题不清楚，可以要求澄清
+
+聊天历史上下文：
+${chatHistory.slice(-5).map(msg => 
+  `${msg.panel || '用户'}: ${msg.text || msg.content}`
+).join('\n')}
+
+请回答用户的问题：`
+      },
+      {
+        role: 'user',
+        content: userQuestion
+      }
+    ]
+
+    const response = await callModelScopeAPI(messages, 0.7, 2048)
+    const aiAnswer = ensureCompleteSentence(response.trim())
+    
+    console.log('[LLM] AI对话回复完成:', { answer: aiAnswer })
+    
+    return {
+      answer: aiAnswer,
+      timestamp: new Date().toISOString()
+    }
+    
+  } catch (error) {
+    console.error('[LLM] AI对话失败:', error)
+    return {
+      answer: '抱歉，AI对话功能暂时不可用，请稍后再试。',
+      timestamp: new Date().toISOString(),
+      error: true
+    }
+  }
+}
+
 // 保证为完整语句：保持原有标点符号
 const ensureQuestionEnding = (text) => {
   if (!text) return text
@@ -1413,6 +1463,10 @@ export const processWithLLM = async ({ type, content, image, context, scenario, 
       return await negotiateFollowUp(content, scenario, chatHistory)
     } else if (type === 'generate_department_contact') {
       return await generateDepartmentContact(content, scenario, chatHistory)
+    } else if (type === 'generate_department_contact_only') {
+      return await generateDepartmentContactOnly(content, scenario, chatHistory)
+    } else if (type === 'ai_chat') {
+      return await chatWithAI(content, scenario, chatHistory)
     }
     
     throw new Error('未知的处理类型')
@@ -1537,6 +1591,101 @@ ${suggestion}
   }
 }
 
+// 生成部门联络指令（仅联络指令，不含客户回复）
+const generateDepartmentContactOnly = async (suggestion, scenario, chatHistory = []) => {
+  try {
+    console.log('\n=== 开始生成部门联络指令（仅联络） ===')
+    console.log('建议内容:', suggestion)
+    console.log('场景:', scenario)
+
+    const chatContext = buildChatContextWithLogging(chatHistory, '联络指令上下文', 4)
+
+    const scenarioPrompts = {
+      retail: {
+        systemRole: '你是一个专业的零售客服主管，负责协调各部门处理客户问题。',
+        context: '根据当前客户问题或需求，生成内部联络指令。',
+        departments: ['订单部', '物流部', '售后部', '技术部', '财务部']
+      },
+      finance: {
+        systemRole: '你是一个专业的金融客服主管，负责协调各部门处理客户业务。',
+        context: '根据当前客户问题或需求，生成内部联络指令。',
+        departments: ['业务部', '风控部', '技术部', '合规部', '运营部']
+      },
+      logistics: {
+        systemRole: '你是一个专业的物流客服主管，负责协调各部门处理客户问题。',
+        context: '根据当前客户问题或需求，生成内部联络指令。',
+        departments: ['运输部', '仓储部', '客服部', '技术部', '结算部']
+      }
+    }
+
+    const prompt = scenarioPrompts[scenario] || scenarioPrompts.retail
+
+    const systemPrompt = `${prompt.systemRole}
+
+${prompt.context}
+
+你需要基于当前情况，生成一个内部联络指令：
+
+【联络指令】- 给内部的行动指令
+要求：
+- 明确责任部门：${prompt.departments.join('、')}
+- 具体行动步骤和时限
+- 跟进要点和汇报要求
+- 80-150字，指令详细明确
+
+输出格式：
+【联络指令】
+[这里是给内部的联络指令]
+
+【防止幻觉的关键原则】
+1. 严格基于提供的内容，不添加对话中未提及的信息
+2. 确保所有信息都有明确的依据来源
+3. 如果某些细节不明确，在指令中体现出需要进一步确认
+4. 不编造具体的订单号、金额、时间等数据`
+
+    const userPrompt = `当前情况：
+${suggestion}
+
+请基于以上情况，生成内部联络指令。${chatContext}`
+
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt }
+    ]
+
+    console.log('发送联络指令生成请求到LLM...')
+    const response = await callModelScopeAPI(messages, 0.7, 2048)
+    console.log('LLM联络指令响应:', truncateForLog(response))
+
+    // 解析输出
+    const contactInstructionMatch = response.match(/【联络指令】\s*\n([\s\S]*?)$/)
+    const contactInstruction = contactInstructionMatch ? contactInstructionMatch[1].trim() : '请相关部门跟进处理当前情况。'
+
+    // 构建步骤显示
+    const steps = [
+      {
+        name: '联络指令生成', 
+        content: contactInstruction
+      }
+    ]
+
+    console.groupCollapsed('[LLM] Parsed -> generate_department_contact_only')
+    console.log('contactInstruction:', truncateForLog(contactInstruction))
+    console.groupEnd()
+
+    return {
+      steps,
+      contactInstruction,
+      structuredOutput: {
+        contactInstruction
+      }
+    }
+  } catch (error) {
+    console.error('生成部门联络指令时出错:', error)
+    throw error
+  }
+}
+
 // 导出其他可能需要的函数
 export {
   callModelScopeAPI,
@@ -1548,5 +1697,7 @@ export {
   generateEnterpriseSuggestion,
   generateEnterpriseFollowUp,
   negotiateSuggestion,
-  generateDepartmentContact
+  generateDepartmentContact,
+  generateDepartmentContactOnly,
+  chatWithAI
 }

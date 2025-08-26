@@ -95,10 +95,13 @@ function App() {
     rejectIntelligentFollowUp,
     // 原有方法
     sendProblemMessage,
+    sendCustomerReplyToProblem,
     sendSolutionMessage,
     generateSuggestion,
     generateFollowUp,
     generateDepartmentContact,
+    generateDepartmentContactOnly,
+    chatWithAI,
     markContactInstructionSent,
     markCustomerReplyApplied,
     confirmSendResponse,
@@ -216,6 +219,23 @@ function App() {
     }
   }
 
+  // 设置方案端输入框内容的函数
+  const [solutionSetInputRef, setSolutionSetInputRef] = useState(null)
+  
+  const setSolutionInput = useCallback((text) => {
+    console.log('🔄 setSolutionInput被调用:', { text, solutionSetInputRef: !!solutionSetInputRef })
+    if (solutionSetInputRef) {
+      console.log('📝 调用solutionSetInputRef:', text)
+      solutionSetInputRef(text)
+    } else {
+      console.error('❌ solutionSetInputRef未设置')
+    }
+  }, [solutionSetInputRef])
+
+  const handleSetSolutionInputRef = useCallback((setInputFn) => {
+    setSolutionSetInputRef(() => setInputFn)
+  }, [])
+
   const handleScenarioChange = useCallback((scenarioId) => {
     setCurrentScenario(scenarioId)
     clearMessages()
@@ -315,13 +335,37 @@ function App() {
               </div>
             </AnimatedTransition>
 
-            {/* LLM Panel */}
+            {/* AI中介处理面板 - 重新设计突出AI功能 */}
             <AnimatedTransition type="scale" show={true}>
-              <div className="panel">
+              <div className="panel" style={{
+                boxShadow: '0 25px 50px -12px rgba(147, 51, 234, 0.25)',
+                border: '2px solid rgba(147, 51, 234, 0.2)',
+                background: 'linear-gradient(135deg, rgba(147, 51, 234, 0.03) 0%, rgba(99, 102, 241, 0.02) 100%)'
+              }}>
                 <LLMPanel
-                  processing={llmProcessing}
+                  processing={llmProcessing || iterationProcessing}
                   messages={messages.llm}
                   settings={settings}
+                  currentScenario={currentScenario}
+                  onGenerateSuggestion={generateSuggestion}
+                  onGenerateFollowUp={generateFollowUp}
+                  onGenerateDepartmentContact={generateDepartmentContact}
+                  onGenerateDepartmentContactOnly={generateDepartmentContactOnly}
+                  onChatWithAI={chatWithAI}
+                  onAcceptSuggestion={acceptSuggestion}
+                  onNegotiateSuggestion={negotiateSuggestion}
+                  onRejectSuggestion={rejectSuggestion}
+                  onAcceptFollowUp={acceptFollowUp}
+                  onNegotiateFollowUp={negotiateFollowUp}
+                  onRejectFollowUp={rejectFollowUp}
+                  onSendToSolution={sendSolutionMessage}
+                  onSendToProblem={sendCustomerReplyToProblem}
+                  onSetSolutionInput={setSolutionInput}
+                  onCancelIteration={cancelIteration}
+                  onCancelNegotiation={cancelNegotiation}
+                  onSendNegotiationRequest={sendNegotiationRequest}
+                  onCancelFollowUpNegotiation={cancelFollowUpNegotiation}
+                  onSendFollowUpNegotiationRequest={sendFollowUpNegotiationRequest}
                 />
               </div>
             </AnimatedTransition>
@@ -343,6 +387,7 @@ function App() {
                   onMarkCustomerReplyApplied={markCustomerReplyApplied}
                   onConfirmSend={confirmSendResponse}
                   onCancelIteration={cancelIteration}
+                  onSetInput={handleSetSolutionInputRef}
                   inputRef={solutionInputRef}
                   settings={settings}
                   iterationProcessing={iterationProcessing}

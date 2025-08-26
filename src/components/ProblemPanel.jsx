@@ -74,12 +74,9 @@ const ProblemPanel = ({ scenario, messages, onSendMessage, isProcessing }) => {
             <p className="text-xs text-gray-600 dark:text-gray-400">{scenario.problemRole}</p>
           </div>
         </div>
-        {/* <button
-          onClick={insertExample}
-          className="btn-ghost text-xs"
-        >
-          插入示例
-        </button> */}
+        <div className="text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-lg">
+          <span>✨ 自动转译到方案端</span>
+        </div>
       </div>
 
       {/* Messages Area */}

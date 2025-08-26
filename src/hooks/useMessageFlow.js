@@ -34,6 +34,17 @@ export const useMessageFlow = (currentScenario) => {
     setPendingResponse(null)
   }, [])
 
+  // 发送客户回复到问题端（不触发转译）
+  const sendCustomerReplyToProblem = useCallback((messageData) => {
+    const customerReplyMessage = {
+      type: 'ai_response', // 标记为AI回复，不是用户输入
+      text: messageData.text,
+      timestamp: messageData.timestamp,
+      source: 'customer_reply' // 标记来源
+    }
+    addMessage('problem', customerReplyMessage)
+  }, [addMessage])
+
   const sendProblemMessage = useCallback(async (messageData) => {
     // 添加用户消息到问题端
     const userMessage = {
@@ -331,6 +342,7 @@ export const useMessageFlow = (currentScenario) => {
         title: '生成企业端建议',
         steps: llmResult.steps,
         output: llmResult.suggestionMessage,
+        structuredOutput: llmResult.structuredOutput,
         timestamp: new Date().toISOString()
       }
       addMessage('llm', llmMessage)
@@ -407,6 +419,7 @@ export const useMessageFlow = (currentScenario) => {
         title: '生成企业端追问',
         steps: llmResult.steps,
         output: llmResult.followUpMessage,
+        structuredOutput: llmResult.structuredOutput,
         timestamp: new Date().toISOString()
       }
       addMessage('llm', llmMessage)
@@ -650,13 +663,36 @@ export const useMessageFlow = (currentScenario) => {
   }, [])
 
   // 新增：发送协商请求
-  const sendNegotiationRequest = useCallback(async (suggestionId, negotiationText) => {
+  const sendNegotiationRequest = useCallback(async (suggestionId, negotiationText, onUpdateContent) => {
     if (!negotiationText.trim()) return
 
+    console.log('🔄 开始处理建议协商请求:', { suggestionId, negotiationText })
+
     try {
-      // 获取原始建议
-      const originalSuggestion = messages.solution.find(msg => msg.id === suggestionId)
-      if (!originalSuggestion) return
+      // 根据messageId格式判断是从哪个消息数组查找
+      let originalSuggestion
+      if (suggestionId.includes('_suggestion')) {
+        // 这是来自LLM面板的消息，从messages.llm中查找
+        const messageIndex = parseInt(suggestionId.split('_')[0])
+        originalSuggestion = messages.llm[messageIndex]
+      } else {
+        // 这是来自solution面板的消息
+        originalSuggestion = messages.solution.find(msg => msg.id === suggestionId)
+      }
+      
+      if (!originalSuggestion) {
+        console.error('❌ 未找到原始建议', { 
+          suggestionId, 
+          messagesLlmLength: messages.llm.length,
+          messagesSolutionLength: messages.solution.length 
+        })
+        return
+      }
+      
+      console.log('✅ 找到原始建议:', { 
+        suggestionId, 
+        originalSuggestionText: originalSuggestion.text || originalSuggestion.output 
+      })
 
       // 构建协商上下文
       const chatHistory = [
@@ -672,7 +708,7 @@ export const useMessageFlow = (currentScenario) => {
       const llmResult = await processWithLLM({
         type: 'negotiate_suggestion',
         content: {
-          originalSuggestion: originalSuggestion.text,
+          originalSuggestion: originalSuggestion.text || originalSuggestion.output,
           negotiationRequest: negotiationText,
           negotiationHistory: originalSuggestion.negotiationHistory || []
         },
@@ -680,15 +716,17 @@ export const useMessageFlow = (currentScenario) => {
         chatHistory: chatHistory
       })
 
-      // 添加LLM处理过程到中介面板
-      const llmMessage = {
-        type: 'processing',
-        title: '协商修改建议',
-        steps: llmResult.steps,
-        output: llmResult.suggestionMessage,
-        timestamp: new Date().toISOString()
+      // 不再添加处理说明到LLM面板，直接更新原内容
+
+      // 调用回调函数更新显示内容
+      if (onUpdateContent && typeof onUpdateContent === 'function') {
+        console.log('🔄 调用回调函数更新建议内容:', llmResult.suggestionMessage)
+        onUpdateContent(llmResult.suggestionMessage)
+      } else {
+        console.warn('⚠️ 未提供回调函数或回调函数无效')
       }
-      addMessage('llm', llmMessage)
+      
+      console.log('✅ 建议协商处理完成')
 
       // 更新原建议为协商后的版本，保留协商历史
       setMessages(prev => ({
@@ -784,13 +822,27 @@ export const useMessageFlow = (currentScenario) => {
   }, [])
 
   // 新增：发送追问协商请求
-  const sendFollowUpNegotiationRequest = useCallback(async (followUpId, negotiationText, onSetInput) => {
+  const sendFollowUpNegotiationRequest = useCallback(async (followUpId, negotiationText, onUpdateContent) => {
     if (!negotiationText.trim()) return
 
+    console.log('🔄 开始处理追问协商请求:', { followUpId, negotiationText })
+
     try {
-      // 获取原始追问
-      const originalFollowUp = messages.solution.find(msg => msg.id === followUpId)
-      if (!originalFollowUp) return
+      // 根据messageId格式判断是从哪个消息数组查找
+      let originalFollowUp
+      if (followUpId.includes('_followup')) {
+        // 这是来自LLM面板的消息，从messages.llm中查找
+        const messageIndex = parseInt(followUpId.split('_')[0])
+        originalFollowUp = messages.llm[messageIndex]
+      } else {
+        // 这是来自solution面板的消息
+        originalFollowUp = messages.solution.find(msg => msg.id === followUpId)
+      }
+      
+      if (!originalFollowUp) {
+        console.error('未找到原始追问，followUpId:', followUpId)
+        return
+      }
 
       // 构建协商上下文
       const chatHistory = [
@@ -806,7 +858,7 @@ export const useMessageFlow = (currentScenario) => {
       const llmResult = await processWithLLM({
         type: 'negotiate_followup',
         content: {
-          originalFollowUp: originalFollowUp.text,
+          originalFollowUp: originalFollowUp.text || originalFollowUp.output,
           negotiationRequest: negotiationText,
           negotiationHistory: originalFollowUp.negotiationHistory || []
         },
@@ -814,15 +866,12 @@ export const useMessageFlow = (currentScenario) => {
         chatHistory: chatHistory
       })
 
-      // 添加LLM处理过程到中介面板
-      const llmMessage = {
-        type: 'processing',
-        title: '协商修改追问',
-        steps: llmResult.steps,
-        output: llmResult.followUpMessage,
-        timestamp: new Date().toISOString()
+      // 不再添加处理说明到LLM面板，直接更新原内容
+
+      // 调用回调函数更新显示内容
+      if (onUpdateContent && typeof onUpdateContent === 'function') {
+        onUpdateContent(llmResult.followUpMessage)
       }
-      addMessage('llm', llmMessage)
 
       // 更新原追问为协商后的版本，保留协商历史
       setMessages(prev => ({
@@ -960,7 +1009,7 @@ export const useMessageFlow = (currentScenario) => {
       const llmResult = await processWithLLM({
         type: 'negotiate_followup',
         content: {
-          originalFollowUp: originalFollowUp.text,
+          originalFollowUp: originalFollowUp.text || originalFollowUp.output,
           negotiationRequest: negotiationText,
           negotiationHistory: originalFollowUp.negotiationHistory || []
         },
@@ -1015,6 +1064,126 @@ export const useMessageFlow = (currentScenario) => {
   }, [messages.problem, messages.solution, currentScenario, addMessage, cancelIntelligentFollowUpNegotiation])
 
   // 生成部门联络指令
+  // AI对话功能
+  const chatWithAI = useCallback(async (question) => {
+    console.log('🤖 开始AI对话:', { question })
+    // 不使用setLlmProcessing，避免影响其他面板的处理状态
+
+    try {
+      // 构建聊天历史上下文
+      const chatHistory = [
+        ...messages.problem
+          .filter(msg => msg.type === 'user' || msg.type === 'ai_response')
+          .map(msg => ({ ...msg, panel: 'problem' })),
+        ...messages.solution
+          .filter(msg => msg.type === 'llm_request' || msg.type === 'user' || msg.type === 'ai_response')
+          .map(msg => ({ ...msg, panel: 'solution' }))
+      ].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+
+      // 调用LLM进行AI对话
+      const llmResult = await processWithLLM({
+        type: 'ai_chat',
+        content: question,
+        scenario: currentScenario,
+        chatHistory: chatHistory
+      })
+
+      // 添加AI对话消息到中介面板
+      const aiChatMessage = {
+        type: 'ai_chat',
+        title: 'AI对话',
+        question: question,
+        answer: llmResult.answer,
+        timestamp: new Date().toISOString(),
+        error: llmResult.error
+      }
+      addMessage('llm', aiChatMessage)
+
+      console.log('✅ AI对话完成:', { answer: llmResult.answer })
+
+    } catch (error) {
+      console.error('❌ AI对话失败:', error)
+      
+      // 添加错误消息
+      const errorMessage = {
+        type: 'ai_chat',
+        title: 'AI对话',
+        question: question,
+        answer: '抱歉，AI对话功能暂时不可用，请稍后再试。',
+        timestamp: new Date().toISOString(),
+        error: true
+      }
+      addMessage('llm', errorMessage)
+    } finally {
+      // 不需要重置setLlmProcessing，因为我们没有设置它
+    }
+  }, [addMessage, currentScenario, messages.problem, messages.solution])
+
+  // 生成部门联络指令（仅联络指令）
+  const generateDepartmentContactOnly = useCallback(async () => {
+    if (iterationProcessing) return
+
+    setIterationProcessing(true)
+
+    try {
+      // 获取最新的对话内容作为联络指令的基础
+      const recentMessages = [
+        ...messages.problem.filter(m => m.type === 'user' || m.type === 'ai_response').slice(-2),
+        ...messages.solution.filter(m => m.type === 'user' || m.type === 'ai_response').slice(-2)
+      ].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+
+      const currentContent = recentMessages.map(msg => msg.text).join('\n') || '基于当前对话生成联络指令'
+
+      // 构建完整的聊天历史
+      const chatHistory = [
+        // 问题端的所有消息：用户输入 + AI优化后的回复
+        ...messages.problem
+          .filter(msg => msg.type === 'user' || msg.type === 'ai_response')
+          .map(msg => ({ ...msg, panel: 'problem' })),
+        // 方案端的所有消息：AI转译的请求 + 企业用户输入 + AI回复
+        ...messages.solution
+          .filter(msg => msg.type === 'llm_request' || msg.type === 'user' || msg.type === 'ai_response')
+          .map(msg => ({ ...msg, panel: 'solution' }))
+      ].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+
+      // 生成部门联络指令
+      const llmResult = await processWithLLM({
+        type: 'generate_department_contact_only',
+        content: currentContent,
+        scenario: currentScenario,
+        chatHistory: chatHistory
+      })
+
+      // 添加LLM处理过程到中介面板
+      const llmMessage = {
+        type: 'processing',
+        title: '生成部门联络',
+        steps: llmResult.steps,
+        structuredOutput: llmResult.structuredOutput,
+        timestamp: new Date().toISOString()
+      }
+      addMessage('llm', llmMessage)
+
+      console.log('✅ 部门联络指令生成完成')
+
+    } catch (error) {
+      console.error('生成部门联络指令时出错:', error)
+      // 添加错误消息
+      const errorMessage = {
+        type: 'processing',
+        title: '生成部门联络出错',
+        steps: [{
+          name: '错误信息',
+          content: '抱歉，生成部门联络指令时出现了错误，请稍后重试。'
+        }],
+        timestamp: new Date().toISOString()
+      }
+      addMessage('llm', errorMessage)
+    } finally {
+      setIterationProcessing(false)
+    }
+  }, [addMessage, currentScenario, messages.problem, messages.solution, iterationProcessing])
+
   const generateDepartmentContact = useCallback(async (suggestion) => {
     if (iterationProcessing) return
 
@@ -1044,9 +1213,10 @@ export const useMessageFlow = (currentScenario) => {
       // 添加LLM处理过程到中介面板
       const llmMessage = {
         type: 'processing',
-        title: '生成部门联络指令',
+        title: '生成客户回复和部门联络',
         steps: llmResult.steps,
         output: `客户回复：${llmResult.customerReply}\n\n联络指令：${llmResult.contactInstruction}`,
+        structuredOutput: llmResult.structuredOutput,
         timestamp: new Date().toISOString()
       }
       addMessage('llm', llmMessage)
@@ -1070,7 +1240,7 @@ export const useMessageFlow = (currentScenario) => {
       // 添加错误消息
       const errorMessage = {
         type: 'processing',
-        title: '生成部门联络指令出错',
+        title: '生成客户回复和部门联络出错',
         steps: [{
           name: '错误信息',
           content: '抱歉，生成部门联络指令时出现了错误，请稍后重试。'
@@ -1159,10 +1329,13 @@ export const useMessageFlow = (currentScenario) => {
     rejectIntelligentFollowUp,
     // 原有方法
     sendProblemMessage,
+    sendCustomerReplyToProblem,
     sendSolutionMessage,
     generateSuggestion,
     generateFollowUp,
     generateDepartmentContact,
+    generateDepartmentContactOnly,
+    chatWithAI,
     markContactInstructionSent,
     markCustomerReplyApplied,
     confirmSendResponse,

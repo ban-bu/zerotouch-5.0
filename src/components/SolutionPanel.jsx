@@ -17,6 +17,7 @@ const SolutionPanel = ({
   onMarkCustomerReplyApplied,
   onConfirmSend,
   onCancelIteration,
+  onSetInput, // 新增：设置输入框内容的回调
   // 新增：勾选框相关props
   missingInfoOptions,
   showMissingInfoPanel,
@@ -47,7 +48,22 @@ const SolutionPanel = ({
   // 调试输入框状态变化
   useEffect(() => {
     console.log('📝 输入框内容更新:', input)
-  }, [input])
+    console.log('🔍 当前状态:', { 
+      iterationMode, 
+      isProcessing, 
+      iterationProcessing,
+      inputReadOnly: isProcessing || iterationProcessing 
+    })
+  }, [input, iterationMode, isProcessing, iterationProcessing])
+
+  // 暴露setInput函数给父组件
+  useEffect(() => {
+    console.log('🔗 SolutionPanel: 设置setInput引用', { onSetInput: !!onSetInput })
+    if (onSetInput) {
+      onSetInput(setInput)
+      console.log('✅ setInput函数已传递给父组件')
+    }
+  }, [onSetInput])
 
   // 调试部门联络指令消息
   useEffect(() => {
@@ -332,8 +348,8 @@ const SolutionPanel = ({
                 </div>
               )}
 
-              {/* 新增：建议消息 */}
-              {message.type === 'suggestion' && (
+              {/* 新增：建议消息 - 简化显示，主要内容在AI中介面板 */}
+              {message.type === 'suggestion' && false && (
                 <div className="message-bubble text-purple-900 shadow-sm hover:shadow-md transition-all duration-200" style={{
                   background: 'linear-gradient(135deg, rgba(168,85,247,0.08) 0%, rgba(221,214,254,0.06) 100%)',
                   backdropFilter: 'blur(14px) saturate(1.2)',
@@ -549,8 +565,8 @@ const SolutionPanel = ({
                 </div>
               )}
 
-              {/* 新增：追问消息 */}
-              {message.type === 'followup' && (
+              {/* 新增：追问消息 - 简化显示，主要内容在AI中介面板 */}
+              {message.type === 'followup' && false && (
                 <div className="message-bubble text-orange-900 shadow-sm hover:shadow-md transition-all duration-200" style={{
                   background: 'linear-gradient(135deg, rgba(251, 146, 60, 0.08) 0%, rgba(254, 215, 170, 0.06) 100%)',
                   backdropFilter: 'blur(14px) saturate(1.2)',
@@ -724,8 +740,8 @@ const SolutionPanel = ({
                 </div>
               )}
 
-              {/* 新增：智能追问消息 */}
-              {message.type === 'intelligent_followup' && (
+              {/* 新增：智能追问消息 - 简化显示，主要内容在AI中介面板 */}
+              {message.type === 'intelligent_followup' && false && (
                 <div className="message-bubble text-indigo-900 shadow-sm hover:shadow-md transition-all duration-200" style={{
                   background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(165, 180, 252, 0.06) 100%)',
                   backdropFilter: 'blur(14px) saturate(1.2)',
@@ -912,8 +928,10 @@ const SolutionPanel = ({
                 </div>
               )}
 
-              {/* 新增：部门联络指令消息 */}
-              {message.type === 'department_contact' && (
+              {/* AI生成内容不再在此显示，所有AI处理都集中在中央LLM面板 */}
+
+              {/* 新增：部门联络指令消息 - 简化显示，主要内容在AI中介面板 */}
+              {message.type === 'department_contact' && false && (
                 <div className="message-bubble text-green-900 shadow-sm hover:shadow-md transition-all duration-200" style={{
                   background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(16, 185, 129, 0.06) 100%)',
                   backdropFilter: 'blur(14px) saturate(1.2)',
@@ -1074,38 +1092,10 @@ const SolutionPanel = ({
           </AnimatedTransition>
         ))}
         
-        {/* 显示迭代处理状态 */}
-        {iterationProcessing && (
-          <AnimatedTransition type="fade" show={true}>
-            <div className="message-bubble message-ai border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/20">
-              <div className="flex items-center space-x-2">
-                <Lightbulb className="w-4 h-4 text-purple-700 dark:text-purple-400" />
-                <div className="flex space-x-1">
-                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-                </div>
-                <span className="text-sm text-purple-700 dark:text-purple-300">AI正在生成...</span>
-              </div>
-            </div>
-          </AnimatedTransition>
-        )}
+        {/* 迭代处理状态现在显示在中央LLM面板，此处不再显示 */}
         
         {/* 显示常规处理状态 */}
-        {isProcessing && !iterationProcessing && (
-          <AnimatedTransition type="fade" show={true}>
-            <div className="message-bubble message-ai border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20">
-              <div className="flex items-center space-x-2">
-                <Bot className="w-4 h-4 text-green-700 dark:text-green-400" />
-                <div className="flex space-x-1">
-                  <div className="w-2 h-2 bg-green-400 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-green-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                  <div className="w-2 h-2 bg-green-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-                </div>
-              </div>
-            </div>
-          </AnimatedTransition>
-        )}
+        {/* 处理状态现在显示在中央LLM面板，此处不再显示 */}
         
         <div ref={messagesEndRef} />
       </div>
@@ -1281,59 +1271,17 @@ const SolutionPanel = ({
               </div>
             </div>
             
-            {/* 新增：AI辅助按钮 */}
-            <div className="flex space-x-2">
-              <button
-                type="button"
-                onClick={onGenerateSuggestion}
-                disabled={iterationProcessing || !messages || messages.length === 0}
-                className="flex-1 px-3 py-2 text-white rounded-2xl transition-all hover:scale-105 disabled:cursor-not-allowed flex items-center justify-center space-x-2 shadow-sm"
-                style={{
-                  background: 'rgba(255, 255, 255, 0.2)',
-                  backdropFilter: 'blur(14px) saturate(1.2)',
-                  WebkitBackdropFilter: 'blur(14px) saturate(1.2)',
-                  border: '1px solid rgba(255, 255, 255, 0.3)'
-                }}
-                title="AI生成建议"
-              >
-                {iterationProcessing ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin"></div>
-                    <span>生成中...</span>
-                  </>
-                ) : (
-                  <>
-                    <Lightbulb className="w-4 h-4 text-white" />
-                    <span className="font-semibold text-sm" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.35)' }}>生成相应建议</span>
-                  </>
-                )}
-              </button>
-              
-              <button
-                type="button"
-                onClick={onGenerateFollowUp}
-                disabled={iterationProcessing || !messages || messages.length === 0}
-                className="flex-1 px-3 py-2 text-white rounded-2xl transition-all hover:scale-105 disabled:cursor-not-allowed flex items-center justify-center space-x-2 shadow-sm"
-                style={{
-                  background: 'rgba(255, 255, 255, 0.2)',
-                  backdropFilter: 'blur(14px) saturate(1.2)',
-                  WebkitBackdropFilter: 'blur(14px) saturate(1.2)',
-                  border: '1px solid rgba(255, 255, 255, 0.3)'
-                }}
-                title="AI直接生成追问"
-              >
-                {iterationProcessing ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin"></div>
-                    <span>生成中...</span>
-                  </>
-                ) : (
-                  <>
-                    <MessageSquare className="w-4 h-4 text-white" />
-                    <span className="font-semibold text-sm" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.35)' }}>直接生成追问</span>
-                  </>
-                )}
-              </button>
+            {/* AI功能已移至中介面板提示 */}
+            <div className="flex items-center justify-center p-3 rounded-xl bg-gradient-to-r from-purple-100/50 to-indigo-100/50 dark:from-purple-900/20 dark:to-indigo-900/20 border border-purple-200/30 dark:border-purple-700/30">
+              <div className="text-center">
+                <div className="flex items-center justify-center space-x-2 text-purple-600 dark:text-purple-400 mb-1">
+                  <Lightbulb className="w-4 h-4" />
+                  <span className="text-sm font-medium">AI智能功能</span>
+                </div>
+                <p className="text-xs text-purple-500 dark:text-purple-300">
+                  所有AI生成功能已集中到中间的AI中介处理面板
+                </p>
+              </div>
             </div>
             
             <div className="flex items-center justify-between">
