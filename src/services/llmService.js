@@ -9,7 +9,8 @@ const MODELSCOPE_CONFIG = {
   model: 'deepseek-ai/DeepSeek-V3',
   apiKeys: [
     'ms-61ecf06f-49de-409b-b685-00a383961042',  // 主要 key
-    'ms-86a76da4-13fa-4810-b412-759dc8511cc4'   // 备用 key
+    'ms-86a76da4-13fa-4810-b412-759dc8511cc4',  // 备用 key
+    'ms-bc1564ca-2e11-4dc4-9cea-fb485028936c'   // 新增备用 key
   ],
   currentKeyIndex: 0
 }
@@ -201,7 +202,12 @@ const sanitizeOutput = (text) => {
     '敬请谅解',
     '忽略本次对话',
     '继续浏览其他服务或信息',
-    '欢迎.*联系我们'
+    '欢迎.*联系我们',
+    '注：',
+    '备注：',
+    '说明：',
+    'PS：',
+    '注意：'
   ]
   let sanitized = text
   bannedPhrases.forEach((p) => {
@@ -226,7 +232,12 @@ const sanitizeFollowUpOutput = (text) => {
     '如果您有任何问题，请随时联系',
     '客服团队会为您',
     '支持团队会为您',
-    '敬请谅解'
+    '敬请谅解',
+    '^注：.*$',
+    '^备注：.*$',
+    '^说明：.*$',
+    '^PS：.*$',
+    '^注意：.*$'
   ]
   let sanitized = text
   bannedPhrases.forEach((p) => {
@@ -355,19 +366,13 @@ const buildChatContextWithLogging = (chatHistory, contextType = '聊天历史上
     
     // 增强的角色映射逻辑，包含错误检测和智能推断
     if (msg.type === 'user') {
+      // 明确优先使用panel字段
       if (msg.panel === 'problem') {
         role = '客户'
       } else if (msg.panel === 'solution') {
         role = '企业端'
       } else {
-        // 如果panel字段缺失或无效，尝试智能推断
-        const content = msg.text?.toLowerCase() || ''
-        if (content.includes('退货') || content.includes('投诉') || content.includes('不满') || 
-            content.includes('cnm') || content.includes('草') || content.includes('妈')) {
-          role = '客户'
-        } else {
-          role = '企业端'
-        }
+        role = '客户'
       }
     } else if (msg.type === 'ai_response') {
       role = msg.panel === 'problem' ? '系统回复给客户' : '系统回复给企业端'
@@ -390,22 +395,13 @@ const buildChatContextWithLogging = (chatHistory, contextType = '聊天历史上
       
       // 增强的角色映射逻辑，包含错误检测和智能推断
       if (msg.type === 'user') {
+        // 明确优先使用panel字段
         if (msg.panel === 'problem') {
           role = '客户'
         } else if (msg.panel === 'solution') {
           role = '企业端'
         } else {
-          // 如果panel字段缺失或无效，尝试智能推断
-          console.warn(`⚠️ 消息panel字段异常: panel="${msg.panel}", 内容预览: "${msg.text?.substring(0, 50)}..."`)
-          // 根据消息内容的特征进行智能判断
-          const content = msg.text?.toLowerCase() || ''
-          if (content.includes('退货') || content.includes('投诉') || content.includes('不满') || 
-              content.includes('cnm') || content.includes('草') || content.includes('妈')) {
-            role = '客户'
-            console.log(`🔧 智能推断: 根据内容特征判断为客户消息`)
-          } else {
-            role = '企业端'
-          }
+          role = '客户'
         }
       } else if (msg.type === 'ai_response') {
         role = msg.panel === 'problem' ? '系统回复给客户' : '系统回复给企业端'
@@ -550,6 +546,10 @@ const processProblemInput = async (content, image, scenario, chatHistory = []) =
 
 ${prompt.instruction}
 
+【重要】统一输出规范（禁止注释）：
+1. 不得在任意位置（包含末尾）输出任何“注：/备注：/说明：/PS：/注意：”等注释性文字或括号内附加说明；
+2. 仅输出正文内容，避免附带提示、免责声明、风格注释等；
+
 【重要】输入内容过滤和智能处理规则：
 1. 不当言语处理：如果用户输入包含辱骂、粗俗、攻击性词汇，不要重复这些内容，而是：
    - 识别为"用户情绪化表达"或"测试性输入"
@@ -564,7 +564,7 @@ ${prompt.instruction}
 
 3. 负面情绪识别：如果输入表达不满或负面情绪，转化为了解问题和提供帮助的机会
 
-请按以下格式输出：
+请按以下格式输出（不得包含注释或备注）：
 
 【需求理解】
 简明扼要地总结用户的核心需求（不超过30字）
@@ -699,11 +699,11 @@ const processSolutionResponse = async (content, scenario, chatHistory = []) => {
     const comprehensivePrompt = [
       {
         role: 'system',
-        content: `${prompt.systemRole}\n\n${prompt.context}\n\n${enhancedInstructions[scenario]}`
+        content: `${prompt.systemRole}\n\n${prompt.context}\n\n${enhancedInstructions[scenario]}\n\n【统一输出规范（禁止注释）】：\n1) 不得在任意位置（包含末尾）输出任何“注：/备注：/说明：/PS：/注意：”等注释性文字或括号内附加说明；\n2) 仅输出正文内容，不要输出提示、免责声明、风格注释。`
       },
       {
         role: 'user',
-        content: `企业方案端回复："${content}"${chatContext}\n\n请按照以下结构输出：\n\n【优化回复】\n将企业回复转化为客户友好、易懂的完整表达。如果需要给客户提供行动建议，请直接融入到回复中，使用自然的语言，不要使用"选项1、选项2"这种格式，而是用"您可以..."、"建议您..."、"如果您需要..."这样的自然表达。\n\n【内部备注】\n（仅供系统参考，不发送给客户）记录处理要点和注意事项\n\n【补充说明】\n如有需要单独说明的重要信息，请列出（如无则写"无"）`
+        content: `企业方案端回复："${content}"${chatContext}\n\n请按照以下结构输出：\n\n【优化回复】\n将企业回复转化为客户友好、易懂的完整表达。如果需要给客户提供行动建议，请直接融入到回复中，使用自然的语言，不要使用"选项1、选项2"这种格式，而是用"您可以..."、"建议您..."、"如果您需要..."这样的自然表达。严禁出现“注：”“备注：”“说明：”“PS：”“注意：”。\n\n【内部备注】\n（仅供系统参考，不发送给客户）记录处理要点和注意事项，不得包含“注：/备注：/说明：/PS：/注意：”。\n\n【补充说明】\n如有需要单独说明的重要信息，请列出（如无则写"无"），不得包含“注：/备注：/说明：/PS：/注意：”。`
       }
     ]
     const resultRaw = await callModelScopeAPI(comprehensivePrompt, 0.1, 3072)
@@ -831,6 +831,7 @@ const generateEnterpriseSuggestion = async (content, scenario, chatHistory = [])
 2) 避免分点、编号、过多铺垫；
 3) 保持可执行与落地性；
 4) 语句完整通顺。
+5) 禁止出现“注：”“备注：”“说明：”“PS：”“注意：”。
 
 【防止幻觉的关键原则】：
 - 建议必须严格基于提供的对话内容，不得臆测或添加虚假信息
@@ -852,8 +853,8 @@ const generateEnterpriseSuggestion = async (content, scenario, chatHistory = [])
     // 若输出过弱/未成句，则进行一次严格提示的重试（降温+明确禁止寒暄）
     if (isWeakOneSentence(result)) {
       const strictPrompt = [
-        { role: 'system', content: `${prompt.systemRole}\n\n${prompt.context}\n\n重要要求：\n1) 输出完整详细的建议，包含具体方案和实施步骤；\n2) 确保语句完整通顺，避免截断；\n3) 提供至少50字以上的详细建议。\n\n【防止幻觉】：严格基于对话内容，不得编造具体产品、价格、时间等细节信息。` },
-        { role: 'user', content: `当前对话内容："${content}"${chatContext}\n\n请基于真实对话内容提供详细完整的建议，包含具体的实施方案和预期效果。不要添加对话中未提及的具体细节。` }
+        { role: 'system', content: `${prompt.systemRole}\n\n${prompt.context}\n\n重要要求：\n1) 输出完整详细的建议，包含具体方案和实施步骤；\n2) 确保语句完整通顺，避免截断；\n3) 提供至少50字以上的详细建议；\n4) 禁止出现“注：”“备注：”“说明：”“PS：”“注意：”。\n\n【防止幻觉】：严格基于对话内容，不得编造具体产品、价格、时间等细节信息。` },
+        { role: 'user', content: `当前对话内容："${content}"${chatContext}\n\n请基于真实对话内容提供详细完整的建议，包含具体的实施方案和预期效果。不要添加对话中未提及的具体细节，并且不得出现“注：”“备注：”“说明：”“PS：”“注意：”。` }
       ]
       resultRaw = await callModelScopeAPI(strictPrompt, 0.7, 2048)
       result = stripLeadingPleasantries(sanitizeFollowUpOutput(resultRaw))

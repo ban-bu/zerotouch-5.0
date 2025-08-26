@@ -76,7 +76,7 @@ export const useMessageFlow = (currentScenario) => {
         ...messages.solution
           .filter(msg => msg.type === 'llm_request' || msg.type === 'user' || msg.type === 'ai_response')
           .map(msg => ({ ...msg, panel: 'solution' })),
-        userMessage // 包含当前消息（用户）
+        { ...userMessage, panel: 'problem' } // 当前消息标注为问题端
       ].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
 
       // 仅进行AI转译（不做智能需求分析）
