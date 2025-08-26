@@ -46,18 +46,9 @@ const LLMPanel = ({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
-  // 智能滚动：只在用户接近底部时才自动滚动
+  // 关闭自动滚动：生成内容后保持视图位置不变
   useEffect(() => {
-    const container = messagesEndRef.current?.parentElement
-    if (!container) return
-
-    // 检查用户是否接近底部（距离底部小于100px）
-    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100
-    
-    // 只有在用户接近底部时才自动滚动
-    if (isNearBottom) {
-      setTimeout(() => scrollToBottom(), 100) // 短暂延迟确保内容已渲染
-    }
+    // no-op to prevent auto scroll on messages update
   }, [messages])
 
 
@@ -433,8 +424,8 @@ const LLMPanel = ({
             </div>
           </AnimatedTransition>
 
-            {/* 缺失信息勾选与生成追问 - 已迁移到中间面板 */}
-            {showMissingInfoPanel && (
+            {/* 缺失信息勾选与生成追问 - 暂时隐藏 */}
+            {false && showMissingInfoPanel && (
               <AnimatedTransition type="slide-up" show={true}>
                 <div className="p-4 glass-effect div-with-background rounded-xl border border-orange-200/40">
                   <div className="space-y-4">

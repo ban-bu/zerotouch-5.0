@@ -145,18 +145,9 @@ const SolutionPanel = ({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
-  // 智能滚动：只在用户接近底部时才自动滚动
+  // 关闭自动滚动：生成内容后保持视图位置不变
   useEffect(() => {
-    const container = messagesEndRef.current?.parentElement
-    if (!container) return
-
-    // 检查用户是否接近底部（距离底部小于100px）
-    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100
-    
-    // 只有在用户接近底部时才自动滚动
-    if (isNearBottom) {
-      setTimeout(() => scrollToBottom(), 100) // 短暂延迟确保内容已渲染
-    }
+    // no-op to prevent auto scroll on messages update
   }, [messages])
 
   // [REMOVED] 不再自动填入建议到最终回复输入框
