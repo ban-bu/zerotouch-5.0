@@ -76,36 +76,68 @@ export const useMessageFlow = (currentScenario) => {
         ...messages.solution
           .filter(msg => msg.type === 'llm_request' || msg.type === 'user' || msg.type === 'ai_response')
           .map(msg => ({ ...msg, panel: 'solution' })),
-        { ...userMessage, panel: 'problem' } // 当前消息标注为问题端
+        userMessage // 包含当前消息（用户）
       ].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
 
-      // 仅进行AI转译（不做智能需求分析）
+      // 使用新的智能需求分析
       const llmResult = await processWithLLM({
-        type: 'problem_input',
+        type: 'analyze_needs_with_missing_info',
         content: messageData.text,
         image: messageData.image,
+        context: 'problem_to_solution',
         scenario: currentScenario,
         chatHistory: chatHistory
       })
 
-      // 暂停：不保存智能需求分析上下文与信息点
-      setCurrentNeedsAnalysis(null)
-      setMissingInfoOptions([])
-      
-      // 暂停：不再添加智能需求分析处理过程卡片
+      // 保存当前需求分析结果
+      setCurrentNeedsAnalysis({
+        originalContent: messageData.text,
+        image: messageData.image,
+        chatHistory: chatHistory
+      })
 
-      // 仅添加转译后的消息到方案端
+      // 设置缺失信息选项
+      setMissingInfoOptions(llmResult.missingInfoOptions || [])
+      
+      // 添加LLM处理过程到中介面板
+      const llmMessage = {
+        type: 'processing',
+        title: '智能需求分析',
+        steps: [
+          {
+            name: '需求理解',
+            content: llmResult.needsUnderstanding
+          },
+          {
+            name: '需求转译',
+            content: llmResult.translation
+          },
+          {
+            name: '缺失信息分析',
+            content: llmResult.missingInfoOptions && llmResult.missingInfoOptions.length > 0 
+              ? `识别到 ${llmResult.missingInfoOptions.length} 个可了解的信息点，等待企业方选择`
+              : '需求信息较为完整，无需额外了解信息'
+          }
+        ],
+        output: llmResult.translation,
+        timestamp: new Date().toISOString()
+      }
+      addMessage('llm', llmMessage)
+
+      // 添加翻译后的消息到方案端
       const translatedMessage = {
         type: 'llm_request',
-        text: llmResult.translatedMessage || llmResult.translation || messageData.text,
+        text: llmResult.translation,
         timestamp: new Date().toISOString(),
-        needsAnalysis: undefined,
-        missingInfoOptions: []
+        needsAnalysis: llmResult.needsUnderstanding,
+        missingInfoOptions: llmResult.missingInfoOptions || []
       }
       addMessage('solution', translatedMessage)
 
       // 如果有缺失信息选项，显示勾选面板
-      // 暂停：不显示缺失信息勾选面板
+      if (llmResult.missingInfoOptions && llmResult.missingInfoOptions.length > 0) {
+        setShowMissingInfoPanel(true)
+      }
 
     } catch (error) {
       console.error('LLM处理错误:', error)
@@ -662,8 +694,70 @@ export const useMessageFlow = (currentScenario) => {
 
   // 新增：独立的智能需求分析（基于当前对话）
   const generateIntelligentNeedsAnalysis = useCallback(async () => {
-    console.log('智能需求分析功能已暂时停用')
-  }, [])
+    if (llmProcessing || iterationProcessing) return
+    
+    setIterationProcessing(true)
+    
+    try {
+      // 获取最近的问题端消息（用户输入）
+      const recentProblemMessages = messages.problem.filter(msg => msg.type === 'user').slice(-2)
+      
+      if (recentProblemMessages.length === 0) {
+        console.log('没有用户输入内容进行需求分析')
+        setIterationProcessing(false)
+        return
+      }
+
+      // 使用最新的用户输入进行分析
+      const latestUserMessage = recentProblemMessages[recentProblemMessages.length - 1]
+      
+      // 构建聊天历史
+      const chatHistory = [
+        ...messages.problem.slice(-3),
+        ...messages.solution.slice(-3)
+      ].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+
+      // 调用智能需求分析
+      const llmResult = await processWithLLM({
+        type: 'analyze_needs_with_missing_info',
+        content: latestUserMessage.text,
+        image: latestUserMessage.image,
+        scenario: currentScenario,
+        chatHistory: chatHistory
+      })
+
+      // 添加到LLM面板显示
+      const llmMessage = {
+        type: 'processing',
+        title: '智能需求分析',
+        steps: [
+          {
+            name: '需求理解',
+            content: llmResult.needsUnderstanding
+          },
+          {
+            name: '信息选项',
+            content: llmResult.missingInfoOptions.map(opt => `${opt.name}：${opt.description}`).join('\n')
+          },
+          {
+            name: '需求转译',
+            content: llmResult.translation
+          }
+        ],
+        output: llmResult.needsUnderstanding,
+        timestamp: new Date().toISOString(),
+        structuredOutput: llmResult.structuredOutput
+      }
+      addMessage('llm', llmMessage)
+
+      console.log('✅ 智能需求分析完成:', llmResult)
+      
+    } catch (error) {
+      console.error('智能需求分析错误:', error)
+    } finally {
+      setIterationProcessing(false)
+    }
+  }, [llmProcessing, iterationProcessing, messages.problem, messages.solution, currentScenario, addMessage])
 
   // 新增：接受建议
   const acceptSuggestion = useCallback((suggestionId) => {

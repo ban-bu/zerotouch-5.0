@@ -135,8 +135,7 @@ const ProblemPanel = ({ scenario, messages, onSendMessage, isProcessing }) => {
           </div>
         ))}
         
-        {/* 转译状态提示已隐藏 */}
-        {false && isProcessing && (
+        {isProcessing && (
           <div className="message-bubble message-ai">
             <div className="flex items-center space-x-2">
               <Bot className="w-4 h-4 text-gray-600" />

@@ -424,8 +424,8 @@ const LLMPanel = ({
             </div>
           </AnimatedTransition>
 
-            {/* 缺失信息勾选与生成追问 - 暂时隐藏 */}
-            {false && showMissingInfoPanel && (
+            {/* 缺失信息勾选与生成追问 - 已迁移到中间面板 */}
+            {showMissingInfoPanel && (
               <AnimatedTransition type="slide-up" show={true}>
                 <div className="p-4 glass-effect div-with-background rounded-xl border border-orange-200/40">
                   <div className="space-y-4">
